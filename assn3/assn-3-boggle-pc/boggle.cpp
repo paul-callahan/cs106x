@@ -96,24 +96,35 @@ public:
 class GameState {
   UserState humanPlayer;
   UserState computerPlayer;
-  Grid<string> board;
+  UserState& currentPlayer;
 
 public:
-  GameState() {
+  Grid<string> board;
+  GameState(): currentPlayer(humanPlayer) {
     board.resize(4, 4);
+    
   }
 
   UserState& GetComputerPlayer() {
     return computerPlayer;
   }
 
-
-
+  UserState& GetCurrentPlayer() {
+    return currentPlayer;
+  }
 };
 
 Set<Location> GetValidPositions(const Grid<string>& board, const Location& currentGridLoc, const Set<Location>& currentPath);
 void FindWords(string prefix, Grid<string>& board, Set<Location>& validPositions, UserState& userState);
 void FindWords(Grid<string>& board, UserState& userState);
+bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState);
+bool IsEqual(string boardLetter, char wordLetter);
+
+
+Lexicon& GetLexicon() {
+  static Lexicon lexicon("lexicon.dat");
+  return lexicon;
+}
 
 void FindWords(Grid<string>& board, UserState& userState) {
   for (int row = 0; row < board.numRows(); row++) {
@@ -128,7 +139,7 @@ void FindWords(Grid<string>& board, UserState& userState) {
 }
 
 void FindWords(string prefix, Grid<string>& board, Set<Location>& validPositions, UserState& userState) {
-  static Lexicon lexicon("lexicon.dat");
+  Lexicon lexicon = GetLexicon();
 
   foreach (Location currentLetterPosition in validPositions) {
     string candidate = prefix + board[currentLetterPosition.row][currentLetterPosition.col];
@@ -150,24 +161,46 @@ void FindWords(string prefix, Grid<string>& board, Set<Location>& validPositions
 
 
 bool ValidateWord(string word, GameState& gameState) {
-  
-  
-
-}
-
-bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState, UserState& playerState) {
-  if (fragment.size() == 0) 
-    return true;
-
-  Set<Location> adjacentLetters = GetValidPositions(gameState.board, lastLetterLoc, playerState.GetCurrentPath());
-  foreach (Location letterLoc in adjacentLetters) {
-    if (gameState.board[letterLoc.row, letterLoc.col] == fragment[0]) {
-      return ValiateWord(fragment.substr(1), letterLoc, gameState, playerState);
+  Lexicon lexicon = GetLexicon();
+  if (lexicon.containsWord(word)) {
+    for (int row = 0; row < gameState.board.numRows(); row++) {
+      for (int col = 0; col < gameState.board.numCols(); col++) {
+        if (IsEqual(gameState.board[row][col], word[0])) {
+          if (ValidateWord(word.substr(1), Location(row, col), gameState))
+            return true;
+        }
+      }
     }
   }
   return false;
 }
 
+
+bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState) {
+  if (fragment.size() == 0) 
+    return true;
+
+  gameState.GetCurrentPlayer().AddToPath(lastLetterLoc);
+  Set<Location> currentWordPath = gameState.GetCurrentPlayer().GetCurrentPath();
+
+  Set<Location> adjacentLetters = GetValidPositions(gameState.board, lastLetterLoc, currentWordPath);
+  foreach (Location letterLoc in adjacentLetters) {
+    if (IsEqual(gameState.board[letterLoc.row][letterLoc.col], fragment[0])) {
+      if (ValidateWord(fragment.substr(1), letterLoc, gameState))
+        return true;
+    }
+  }
+  gameState.GetCurrentPlayer().ClearCurrentPath();
+  return false;
+}
+
+bool IsEqual(string boardLetter, char wordLetter) {
+  //TODO: do something to handle "Qu"
+  string wordLetterStr;
+  wordLetterStr += wordLetter;
+  return boardLetter == wordLetterStr;
+
+}
 
 void GiveInstructions()
 {
