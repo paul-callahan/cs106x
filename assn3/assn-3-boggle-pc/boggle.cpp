@@ -22,7 +22,10 @@ const int MIN_WORD_SIZE = 4;
 
 class Location {
 public:
-  int row, col, ordinal;
+  // I wanted to make these const so a Location object would be
+  // totally immutable, but was thwarted by the operator=
+  // There must be a trick I'm not seeing.
+  int row, col;
 
   Location(int row, int col): row(row), col(col){};
 
@@ -65,6 +68,10 @@ public:
     orderedPath.add(location);
   }
 
+  void AddBlackListedWord(string word) {
+    otherPlayersWords.add(word);
+  }
+
   void RollbackCurrentPath() {
     if (orderedPath.size() > 0) {
       Location lastLocation = orderedPath[orderedPath.size()-1];
@@ -75,6 +82,13 @@ public:
   void ClearCurrentPath() {
     currentPath.clear();
     orderedPath.clear();
+  }
+
+  void GetFoundWords(Set<string>& outWordSet) {
+    //no map.keySet ?  :-/
+      foreach (string word in wordsToPath) {
+        outWordSet.add(word);
+     }   
   }
 
   void AddFoundWord(string word) {
@@ -102,11 +116,12 @@ public:
   Grid<string> board;
   GameState(): currentPlayer(humanPlayer) {
     board.resize(4, 4);
-    
   }
 
-  UserState& GetComputerPlayer() {
-    return computerPlayer;
+  void ComputersTurn() {
+    //TODO: make this work
+    //humanPlayer.GetFoundWords(computerPlayer.otherPlayersWords);    
+    currentPlayer = computerPlayer;
   }
 
   UserState& GetCurrentPlayer() {
@@ -115,8 +130,10 @@ public:
 };
 
 Set<Location> GetValidPositions(const Grid<string>& board, const Location& currentGridLoc, const Set<Location>& currentPath);
-void FindWords(string prefix, Grid<string>& board, Set<Location>& validPositions, UserState& userState);
-void FindWords(Grid<string>& board, UserState& userState);
+
+void FindWords(string prefix, GameState& gameState, Set<Location>& validPositions);
+void FindWords(GameState& gameState);
+
 bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState);
 bool IsEqual(string boardLetter, char wordLetter);
 
@@ -126,20 +143,24 @@ Lexicon& GetLexicon() {
   return lexicon;
 }
 
-void FindWords(Grid<string>& board, UserState& userState) {
+void FindWords(GameState& gameState) {
+  Grid<string>& board = gameState.board;
+
   for (int row = 0; row < board.numRows(); row++) {
     for (int col = 0; col < board.numCols(); col++) {
       Location startLocation(row, col);
       Set<Location> startPath;
       startPath.add(startLocation);
-      userState.ClearCurrentPath();
-      FindWords("", board, startPath, userState);
+      gameState.GetCurrentPlayer().ClearCurrentPath();
+      FindWords("", gameState, startPath);
     }
   }
 }
 
-void FindWords(string prefix, Grid<string>& board, Set<Location>& validPositions, UserState& userState) {
-  Lexicon lexicon = GetLexicon();
+void FindWords(string prefix, GameState& gameState, Set<Location>& validPositions) {
+  Lexicon& lexicon = GetLexicon();
+  Grid<string>& board = gameState.board;
+  UserState& userState = gameState.GetCurrentPlayer();
 
   foreach (Location currentLetterPosition in validPositions) {
     string candidate = prefix + board[currentLetterPosition.row][currentLetterPosition.col];
@@ -152,7 +173,7 @@ void FindWords(string prefix, Grid<string>& board, Set<Location>& validPositions
       }
       userState.AddToPath(currentLetterPosition);
       Set<Location> nextLetterPositions = GetValidPositions(board, currentLetterPosition, userState.GetCurrentPath());
-      FindWords(candidate, board, nextLetterPositions, userState);
+      FindWords(candidate, gameState, nextLetterPositions);
     }
   }
   //dead-end...  roll back our path by one
@@ -161,7 +182,7 @@ void FindWords(string prefix, Grid<string>& board, Set<Location>& validPositions
 
 
 bool ValidateWord(string word, GameState& gameState) {
-  Lexicon lexicon = GetLexicon();
+  Lexicon& lexicon = GetLexicon();
   if (lexicon.containsWord(word)) {
     for (int row = 0; row < gameState.board.numRows(); row++) {
       for (int col = 0; col < gameState.board.numCols(); col++) {
@@ -238,13 +259,14 @@ int mainX()
   return 0;
 }
 
+/**
 int OrderedLocationComparator(Location locOne, Location locTwo) {
   int diff = locOne.ordinal - locTwo.ordinal;
   if (diff == 0)
     return 0;
   return diff/abs(diff);
 }
-
+*/
 int UniqueLocationComparator(Location& locOne, Location& locTwo) {
   if (locOne.row == locTwo.row && locOne.col == locTwo.col)
     return 0;
@@ -296,33 +318,35 @@ void TestFindWord() {
   GameState gameState;
 
 
-  UserState userState;
 
-  Grid<string> board(4, 4);
 
-  board[0][0] = "C";
-  board[0][1] = "A";
-  board[0][2] = "R";
-  board[0][3] = "E";
 
-  board[1][0] = "O";
-  board[1][1] = "Z";
-  board[1][2] = "O";
-  board[1][3] = "I";
+  gameState.board[0][0] = "C";
+  gameState.board[0][1] = "A";
+  gameState.board[0][2] = "R";
+  gameState.board[0][3] = "E";
 
-  board[2][0] = "D";
-  board[2][1] = "F";
-  board[2][2] = "L";
-  board[2][3] = "Qu";
+  gameState.board[1][0] = "O";
+  gameState.board[1][1] = "Z";
+  gameState.board[1][2] = "O";
+  gameState.board[1][3] = "I";
 
-  board[3][0] = "A";
-  board[3][1] = "E";
-  board[3][2] = "P";
-  board[3][3] = "T";
+  gameState.board[2][0] = "D";
+  gameState.board[2][1] = "F";
+  gameState.board[2][2] = "L";
+  gameState.board[2][3] = "Qu";
 
-  FindWords(board, userState);
+  gameState.board[3][0] = "A";
+  gameState.board[3][1] = "E";
+  gameState.board[3][2] = "P";
+  gameState.board[3][3] = "T";
 
-  cout<< userState.GetScore() << endl;
+  bool found = ValidateWord("CARE", gameState);
+
+  gameState.ComputersTurn();
+  FindWords(gameState);
+
+  cout<< gameState.GetCurrentPlayer().GetScore() << endl;
 
 }
 
