@@ -92,7 +92,6 @@ public:
     return score; 
   }
 
-
 private:
   int score;
   Map<Vector<Location> > wordsToPath;
@@ -124,10 +123,142 @@ public:
   Player& currentPlayer;
 };
 
-void GetValidPositions(GameState& gameState, const Location& currentGridLoc, Set<Location>& validPositionsOut);
-void FindWords(string prefix, GameState& gameState, Set<Location>& validPositions);
+/* 
+ * Function: GetValidPositions
+ * -------------------
+ * For a give location on the board, find all the *valid* adjacent letter 
+ * locations and put them in the validPositionsOut Set.  A valid position 
+ * is one that is not currently in use for the current word.
+ */ 
+void GetValidPositions(GameState& gameState, 
+                       const Location& boardLoc, 
+                       Set<Location>& validPositionsOut);
+
+/* 
+ * Function: FindWords
+ * --gameState: object containing board and the players
+ * -------------------
+ * Find all the valid words for the current player (typically the computer 
+ * player).  Valid words are words that are equal or greater in length to the
+ * minimum word size (4) and have not been found by the other player already
+ * 
+ * This calls into the overloaded recursion helper function FindWords below
+ * with an empty word prefix string and the current board starting point as
+ * initial values.
+ */ 
 void FindWords(GameState& gameState);
-bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState);
+
+/* 
+ * Function: FindWords
+ * --prefix: - word being built uo
+ * --gameState: object containing board and the players
+ * --validAdjacentPositions: locations letters adjacent to the current letter
+ * -------------------
+ * Recursively finds valid words on the board.  Each call checks if any of the
+ * surrounding adjacent letters (validAdjacentPositions), form the beginings of
+ * a word.  If not, the function backtracks out of the recursion one level and
+ * checks the next adjacent letter.
+ *
+ * The location path on the board of the current word being formed is tracked in
+ * the Player object inside the game state object.
+ */ 
+void FindWords(string prefix, 
+               GameState& gameState, 
+               Set<Location>& validAdjacentPositions);
+
+/* 
+ * Function: ValidateWord
+ * --gameState: object containing board and the players
+ * -------------------
+ * Validates that a word is valid and exists on the board.
+ * The word must be of minimum length (4), and use a path of
+ * adjacent letters without using the same letter for a word.
+ * 
+ * Calls into the ValidateWord recursion helper below.
+ */ 
+bool ValidateWord(string word, GameState& gameState);
+
+
+/* 
+ * Function: ValidateWord
+ * --fragment: a portion of the word being validated
+ * --lastLetterLoc: location of the last found letter
+ * --gameState: object containing board and the players
+ * -------------------
+ * 
+ * 
+ * 
+ */ 
+bool ValidateWord(string fragment, 
+                  Location lastLetterLoc, 
+                  GameState& gameState);
+
+/* 
+ * Function: Is1stLetterEqual
+ * -------------------
+ * 
+ * 
+ * 
+ */ 
+bool Is1stLetterEqual(char boardLetter, 
+                      string wordFrag, 
+                      bool useQu);
+
+/* 
+ * Function: GetLexicon
+ * -------------------
+ * Returns a reference to a static Lexicon object.
+ * Used for checking the validity of words and word-fragments.
+ * 
+ */ 
+Lexicon& GetLexicon();
+
+/* 
+ * Function: IsQ
+ * --c: char being tested
+ * -------------------
+ * returns true if the char passed is a 'Q'.
+ */ 
+bool IsQ(char c);
+
+/* 
+ * Function: toUpper
+ *--str: string to be transformed.
+ * -------------------
+ * Changes a string reference to all upper case.
+ * also returns the same reference.
+ */ 
+string toUpper(std::string &str);
+
+/* 
+ * Function: AppendCharacter
+ * --prefix: string that will be appened to
+ * --nextLetter: char that will be appened
+ * --useQu: Controls Q behavior
+ * -------------------
+ * 
+ * 
+ * 
+ */ 
+string BuildWord(string prefix, char nextLetter, bool useQu);
+
+/* 
+ * Function: DecrementWord
+ * -------------------
+ * Returns in effect fragment.substr(1), unless the useQu is set to true
+ * and fragment[0] is Q or q, in which case it will perform fragment.substr(2);
+ * 
+ */ 
+string DecrementWord(string fragment, bool useQu);
+
+/* 
+ * Function: Is1stLetterEqual
+ * -------------------
+ * This function compares a char to the first letter of a string.
+ * If the useQu flag is set to true, a char Q will be treated as "QU" and
+ * QU will be compared against the first two letters of the string.
+ * 
+ */ 
 bool Is1stLetterEqual(char boardLetter, string wordFrag, bool useQu);
 
 
@@ -140,19 +271,14 @@ bool IsQ(char c) {
   return c == 'Q' || c == 'q';
 }
 
-// I stole this toLower func from a c++ forum.
+// I stole this toLower/Upper func from a c++ forum.
 // http://www.cplusplus.com/forum/general/837/#msg2843
-string toLower(std::string &str){
-	std::transform(str.begin(), str.end(), str.begin(), std::tolower);
-  return str;
-}
-
-string toUpper(std::string &str){
+string toUpper(std::string &str) {
 	std::transform(str.begin(), str.end(), str.begin(), std::toupper);
   return str;
 }
 
-string NextWordFragment(string prefix, char nextLetter, bool useQu) {
+string AppendCharacter(string prefix, char nextLetter, bool useQu) {
   if (useQu) {
     if (IsQ(nextLetter))
       return prefix + "QU";
@@ -201,7 +327,8 @@ void FindWords(string prefix, GameState& gameState, Set<Location>& validPosition
   Player& player = gameState.GetCurrentPlayer();
 
   foreach (Location currentLetterPosition in validPositions) {
-    string candidate = NextWordFragment(prefix, board[currentLetterPosition.row][currentLetterPosition.col], true);
+    char boardLetter = board[currentLetterPosition.row][currentLetterPosition.col];
+    string candidate = AppendCharacter(prefix, boardLetter, true);
     //cout << "--" << candidate << PathToString(userState.currentWordPath)  << endl;
     if (lexicon.containsPrefix(candidate)) {
       //is the candidate a word?
@@ -305,6 +432,7 @@ int OrderedLocationComparator(Location locOne, Location locTwo) {
 }
 */
 
+/*
 int UniqueLocationComparator(Location& locOne, Location& locTwo) {
   if (locOne.row == locTwo.row && locOne.col == locTwo.col)
     return 0;
@@ -317,7 +445,7 @@ int UniqueLocationComparator(Location& locOne, Location& locTwo) {
   }
 }
 
-
+*/
 
 string PathToString(Vector<Location>& path) {
   string output(" path:");
@@ -354,8 +482,6 @@ void GetValidPositions(GameState& gameState,
 
 void TestFindWord() {
   GameState gameState;
-
-
 
   gameState.board[0][0] = 'C';
   gameState.board[0][1] = 'A';
