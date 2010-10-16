@@ -16,20 +16,15 @@
 #include "vector.h"
 #include "disallowcopy.h"
 #include <iostream>
+#include <algorithm>
 
 const int MIN_WORD_SIZE = 4;
 
 
-class Location {
-public:
-  // I wanted to make these const so a Location object would be
-  // totally immutable, but was thwarted by the operator=
-  // There must be a trick I'm not seeing.
+struct Location {
   int row, col;
-
   Location(int row, int col): row(row), col(col){};
-
-  Location():row(-1), col(-1){};
+  Location(): row(-1), col(-1){};
 
   bool operator==(const Location& other) {
     return other.col == col && other.row == row;
@@ -39,49 +34,43 @@ public:
     return other.row < row ||
       (other.row == row && other.col < col);
   }
-
-  Location& operator=(const Location& rhs) {
-    if (this != &rhs) {
-      row = rhs.row;
-      col = rhs.col;
-    }
-    return *this;
-  }
 };
+
+
 
 string PathToString(Vector<Location>& path);
 
-class UserState {
-  int score;
-  Map<Vector<Location>> wordsToPath;
-  Set<Location> currentPath;
-  Vector<Location> orderedPath;
-  Set<string> otherPlayersWords;
-
+class Player {
 public:
-  UserState() {
-    score = 0;
-  }
+  Player(): score(0) { }
 
-  void AddToPath(Location& location) {
-    currentPath.add(location);
-    orderedPath.add(location);
+  void AddToCurrentPath(Location& location) {
+    currentWordLetterLocations.add(location);
+    currentWordPath.add(location);
   }
 
   void AddBlackListedWord(string word) {
     otherPlayersWords.add(word);
   }
 
+  Set<string>& GetBlackListedWords() {
+    return otherPlayersWords;
+  }
+
+  const Set<Location>& GetCurrentPath() {
+    return currentWordLetterLocations; 
+  }
+
   void RollbackCurrentPath() {
-    if (orderedPath.size() > 0) {
-      Location lastLocation = orderedPath[orderedPath.size()-1];
-      orderedPath.removeAt(orderedPath.size()-1);
-      currentPath.remove(lastLocation);
+    if (currentWordPath.size() > 0) {
+      Location lastLocation = currentWordPath[currentWordPath.size()-1];
+      currentWordPath.removeAt(currentWordPath.size()-1);
+      currentWordLetterLocations.remove(lastLocation);
     }
   }
   void ClearCurrentPath() {
-    currentPath.clear();
-    orderedPath.clear();
+    currentWordLetterLocations.clear();
+    currentWordPath.clear();
   }
 
   void GetFoundWords(Set<string>& outWordSet) {
@@ -93,49 +82,53 @@ public:
 
   void AddFoundWord(string word) {
     if (!otherPlayersWords.contains(word)) {
-      wordsToPath.put(word, orderedPath);
+      wordsToPath.put(word, currentWordPath);
       score += word.size() - MIN_WORD_SIZE + 1;
-      cout << word << PathToString(orderedPath) <<    endl;
+      cout << word << PathToString(currentWordPath) <<    endl;
     }
   }
 
   int GetScore() { 
     return score; 
   }
-  const Set<Location>& GetCurrentPath() {
-    return currentPath; 
-  }
+
+
+private:
+  int score;
+  Map<Vector<Location> > wordsToPath;
+  Set<Location> currentWordLetterLocations;
+  Vector<Location> currentWordPath;
+  Set<string> otherPlayersWords;
 };
 
 class GameState {
-  UserState humanPlayer;
-  UserState computerPlayer;
-  UserState& currentPlayer;
 
 public:
-  Grid<string> board;
+  Grid<char> board;
+  int recursiveCalls;
   GameState(): currentPlayer(humanPlayer) {
     board.resize(4, 4);
   }
 
   void ComputersTurn() {
-    //TODO: make this work
-    //humanPlayer.GetFoundWords(computerPlayer.otherPlayersWords);    
+    humanPlayer.GetFoundWords(computerPlayer.GetBlackListedWords());
     currentPlayer = computerPlayer;
   }
 
-  UserState& GetCurrentPlayer() {
+  Player& GetCurrentPlayer() {
     return currentPlayer;
   }
+
+  Player humanPlayer;
+  Player computerPlayer;
+  Player& currentPlayer;
 };
 
-Set<Location> GetValidPositions(const Grid<string>& board, const Location& currentGridLoc, const Set<Location>& currentPath);
-
+void GetValidPositions(GameState& gameState, const Location& currentGridLoc, Set<Location>& validPositionsOut);
 void FindWords(string prefix, GameState& gameState, Set<Location>& validPositions);
 void FindWords(GameState& gameState);
-
 bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState);
-bool IsEqual(string boardLetter, char wordLetter);
+bool Is1stLetterEqual(char boardLetter, string wordFrag, bool useQu);
 
 
 Lexicon& GetLexicon() {
@@ -143,8 +136,53 @@ Lexicon& GetLexicon() {
   return lexicon;
 }
 
+bool IsQ(char c) {
+  return c == 'Q' || c == 'q';
+}
+
+// I stole this toLower func from a c++ forum.
+// http://www.cplusplus.com/forum/general/837/#msg2843
+string toLower(std::string &str){
+	std::transform(str.begin(), str.end(), str.begin(), std::tolower);
+  return str;
+}
+
+string toUpper(std::string &str){
+	std::transform(str.begin(), str.end(), str.begin(), std::toupper);
+  return str;
+}
+
+string NextWordFragment(string prefix, char nextLetter, bool useQu) {
+  if (useQu) {
+    if (IsQ(nextLetter))
+      return prefix + "QU";
+  }
+  return prefix + nextLetter;
+}
+
+string DecrementWord(string fragment, bool useQu) {
+  if (useQu) 
+    if (IsQ(fragment[0]))
+      return fragment.substr(2);
+  return fragment.substr(1);
+}
+
+bool Is1stLetterEqual(char boardLetter, string wordFrag, bool useQu) {
+  //TODO: do something to handle "Qu"
+  if (useQu)
+    if (IsQ(boardLetter)) {
+      string first = wordFrag.substr(0, 2);
+      return  first == "QU";
+    }
+  return boardLetter == wordFrag[0];
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//   find and validate word methods
+//////////////////////////////////////////////////////////////////////////////
+
 void FindWords(GameState& gameState) {
-  Grid<string>& board = gameState.board;
+  Grid<char>& board = gameState.board;
 
   for (int row = 0; row < board.numRows(); row++) {
     for (int col = 0; col < board.numCols(); col++) {
@@ -159,36 +197,42 @@ void FindWords(GameState& gameState) {
 
 void FindWords(string prefix, GameState& gameState, Set<Location>& validPositions) {
   Lexicon& lexicon = GetLexicon();
-  Grid<string>& board = gameState.board;
-  UserState& userState = gameState.GetCurrentPlayer();
+  Grid<char>& board = gameState.board;
+  Player& player = gameState.GetCurrentPlayer();
 
   foreach (Location currentLetterPosition in validPositions) {
-    string candidate = prefix + board[currentLetterPosition.row][currentLetterPosition.col];
-    //cout << "--" << candidate << PathToString(userState.orderedPath)  << endl;
+    string candidate = NextWordFragment(prefix, board[currentLetterPosition.row][currentLetterPosition.col], true);
+    //cout << "--" << candidate << PathToString(userState.currentWordPath)  << endl;
     if (lexicon.containsPrefix(candidate)) {
       //is the candidate a word?
       if (candidate.size() >= MIN_WORD_SIZE && lexicon.containsWord(candidate)) {
         //duplicate words get overwritten.
-        userState.AddFoundWord(candidate);
+        player.AddFoundWord(candidate);
       }
-      userState.AddToPath(currentLetterPosition);
-      Set<Location> nextLetterPositions = GetValidPositions(board, currentLetterPosition, userState.GetCurrentPath());
+      player.AddToCurrentPath(currentLetterPosition);
+      Set<Location> nextLetterPositions;
+      GetValidPositions(gameState, currentLetterPosition, nextLetterPositions);
       FindWords(candidate, gameState, nextLetterPositions);
     }
   }
   //dead-end...  roll back our path by one
-  userState.RollbackCurrentPath();
+  player.RollbackCurrentPath();
 }
 
 
 bool ValidateWord(string word, GameState& gameState) {
   Lexicon& lexicon = GetLexicon();
+  toUpper(word);
   if (lexicon.containsWord(word)) {
     for (int row = 0; row < gameState.board.numRows(); row++) {
       for (int col = 0; col < gameState.board.numCols(); col++) {
-        if (IsEqual(gameState.board[row][col], word[0])) {
-          if (ValidateWord(word.substr(1), Location(row, col), gameState))
+        if (Is1stLetterEqual(gameState.board[row][col], word, true)) {
+          string nextFragment = DecrementWord(word, true);
+          if (ValidateWord(nextFragment, Location(row, col), gameState)) {
+            gameState.GetCurrentPlayer().AddFoundWord(word);
+            gameState.GetCurrentPlayer().ClearCurrentPath();
             return true;
+          }
         }
       }
     }
@@ -201,13 +245,14 @@ bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState)
   if (fragment.size() == 0) 
     return true;
 
-  gameState.GetCurrentPlayer().AddToPath(lastLetterLoc);
+  gameState.GetCurrentPlayer().AddToCurrentPath(lastLetterLoc);
   Set<Location> currentWordPath = gameState.GetCurrentPlayer().GetCurrentPath();
 
-  Set<Location> adjacentLetters = GetValidPositions(gameState.board, lastLetterLoc, currentWordPath);
+  Set<Location> adjacentLetters;
+  GetValidPositions(gameState, lastLetterLoc, adjacentLetters);
   foreach (Location letterLoc in adjacentLetters) {
-    if (IsEqual(gameState.board[letterLoc.row][letterLoc.col], fragment[0])) {
-      if (ValidateWord(fragment.substr(1), letterLoc, gameState))
+    if (Is1stLetterEqual(gameState.board[letterLoc.row][letterLoc.col], fragment, true)) {
+      if (ValidateWord(DecrementWord(fragment, true), letterLoc, gameState))
         return true;
     }
   }
@@ -215,13 +260,6 @@ bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState)
   return false;
 }
 
-bool IsEqual(string boardLetter, char wordLetter) {
-  //TODO: do something to handle "Qu"
-  string wordLetterStr;
-  wordLetterStr += wordLetter;
-  return boardLetter == wordLetterStr;
-
-}
 
 void GiveInstructions()
 {
@@ -255,7 +293,6 @@ int mainX()
   InitGraphics();
   Welcome();
   Lexicon lex("lexicon.dat");
-
   return 0;
 }
 
@@ -267,6 +304,7 @@ int OrderedLocationComparator(Location locOne, Location locTwo) {
   return diff/abs(diff);
 }
 */
+
 int UniqueLocationComparator(Location& locOne, Location& locTwo) {
   if (locOne.row == locTwo.row && locOne.col == locTwo.col)
     return 0;
@@ -294,24 +332,24 @@ string PathToString(Vector<Location>& path) {
 }
 
 
-Set<Location> GetValidPositions(const Grid<string>& board, const Location& currentGridLoc, const Set<Location>& currentPath) {
-  Set<Location> nextValidPositions;
+void GetValidPositions(GameState& gameState, 
+                       const Location& currentGridLoc, 
+                       Set<Location>& validPositionsOut) {
+  Set<Location> currentWordPath = gameState.GetCurrentPlayer().GetCurrentPath();
   for (int dRow = -1; dRow <= 1; dRow++) {
     for (int dCol = -1; dCol <= 1; dCol++) {
       int nRow = currentGridLoc.row + dRow;
       int nCol = currentGridLoc.col + dCol;
       if (nRow >= 0 && nCol >= 0 &&
         !(nRow == currentGridLoc.row && nCol == currentGridLoc.col) &&
-        nRow < ((Grid<string>)board).numRows() && nCol < ((Grid<string>)board).numCols()) {
+        nRow < gameState.board.numRows() && nCol < gameState.board.numCols()) {
           Location newLocation(nRow, nCol);
-          if (!((Set<Location>)currentPath).contains(newLocation)) {
-            nextValidPositions.add(newLocation);
+          if (!currentWordPath.contains(newLocation)) {
+            validPositionsOut.add(newLocation);
           }
       }
     }
   }
-  //copy whole set?  yuck
-  return nextValidPositions;
 }
 
 void TestFindWord() {
@@ -319,29 +357,27 @@ void TestFindWord() {
 
 
 
+  gameState.board[0][0] = 'C';
+  gameState.board[0][1] = 'A';
+  gameState.board[0][2] = 'R';
+  gameState.board[0][3] = 'E';
 
+  gameState.board[1][0] = 'O';
+  gameState.board[1][1] = 'Z';
+  gameState.board[1][2] = 'O';
+  gameState.board[1][3] = 'I';
 
-  gameState.board[0][0] = "C";
-  gameState.board[0][1] = "A";
-  gameState.board[0][2] = "R";
-  gameState.board[0][3] = "E";
+  gameState.board[2][0] = 'D';
+  gameState.board[2][1] = 'F';
+  gameState.board[2][2] = 'L';
+  gameState.board[2][3] = 'Q';
 
-  gameState.board[1][0] = "O";
-  gameState.board[1][1] = "Z";
-  gameState.board[1][2] = "O";
-  gameState.board[1][3] = "I";
+  gameState.board[3][0] = 'A';
+  gameState.board[3][1] = 'E';
+  gameState.board[3][2] = 'P';
+  gameState.board[3][3] = 'T';
 
-  gameState.board[2][0] = "D";
-  gameState.board[2][1] = "F";
-  gameState.board[2][2] = "L";
-  gameState.board[2][3] = "Qu";
-
-  gameState.board[3][0] = "A";
-  gameState.board[3][1] = "E";
-  gameState.board[3][2] = "P";
-  gameState.board[3][3] = "T";
-
-  bool found = ValidateWord("CARE", gameState);
+  bool found = ValidateWord("QUILT", gameState);
 
   gameState.ComputersTurn();
   FindWords(gameState);
