@@ -1,8 +1,16 @@
 /* File: boggle.cpp
 * ----------------
-* Author:
-* Date:
-* Section leader:
+* Author: Paul Callahan 
+* Grader: Alex Quach
+* Assignment #3, boggle
+*
+* This program creates the word game boggle.
+* First, itrompts user to read dice from a file or enter manually,
+* Then randomly creates a game board and displays it.
+* Then it allows the user to play first.  User enters words 
+* he or she finds at the command prompt.
+* After the user has played, the computer finds the remaing
+* words on the board.
 */
 
 #include "genlib.h"
@@ -28,17 +36,17 @@ const int BOARD_SIZE = 4;
 
 
 /*
- * Record: Location
- * ----------
- * This struct represents a point on the game board.
- *
- */
+* Record: Location
+* ----------
+* This struct represents a point on the game board.
+*
+*/
 struct Location {
   int row, col;
   Location(int row, int col): row(row), col(col){};
   Location(): row(-1), col(-1){};
 
- /*
+  /*
   * Method: operator==
   * ----------------------------
   * Required for using this record in cs106x container classes
@@ -48,7 +56,7 @@ struct Location {
     return other.col == col && other.row == row;
   }
 
- /*
+  /*
   * Method: operator<
   * ----------------------------
   * Required for using this record in cs106x container classes
@@ -64,13 +72,13 @@ struct Location {
 
 
 /*
- * Class: Player
- * ----------
- * This class represents a player in the game.
- * Contains words and the paths of those words this
- * player has found, as well as the list of words
- * this player is not allowed to use.
- */
+* Class: Player
+* ----------
+* This class represents a player in the game.
+* Contains words and the paths of those words this
+* player has found, as well as the list of words
+* this player is not allowed to use.
+*/
 class Player {
 public:
 
@@ -142,7 +150,7 @@ public:
     currentWordLetterLocations.clear();
     currentWordPath.clear();
   }
-  
+
   /*
   * Method: GetPathForWord
   * ----------------------------
@@ -161,9 +169,9 @@ public:
   */
   void GetFoundWords(Set<string>& outWordSet) {
     //no map.keySet ?  :-/
-      foreach (string word in wordsToPath) {
-        outWordSet.add(word);
-     }   
+    foreach (string word in wordsToPath) {
+      outWordSet.add(word);
+    }   
   }
 
   /*
@@ -203,11 +211,11 @@ private:
 
 
 /*
- * Class: GameState
- * ----------
- * This class represents the state of a game.  Contains
- * player objects and the board object.
- */
+* Class: GameState
+* ----------
+* This class represents the state of a game.  Contains
+* player objects and the board object.
+*/
 class GameState {
 
 public:
@@ -254,79 +262,79 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 
 /* 
- * Function: FindWords
- * --gameState: object containing board and the players
- * -------------------
- * Find all the valid words for the current player (typically the computer 
- * player).  Valid words are words that are equal or greater in length to the
- * minimum word size (4) and have not been found by the other player already
- * 
- * This calls into the overloaded recursion helper function FindWords below
- * with an empty word prefix string and the current board starting point as
- * initial values.
- */ 
+* Function: FindWords
+* --gameState: object containing board and the players
+* -------------------
+* Find all the valid words for the current player (typically the computer 
+* player).  Valid words are words that are equal or greater in length to the
+* minimum word size (4) and have not been found by the other player already
+* 
+* This calls into the overloaded recursion helper function FindWords below
+* with an empty word prefix string and the current board starting point as
+* initial values.
+*/ 
 void FindWords(GameState& gameState);
 
 /* 
- * Function: FindWords
- * --prefix: - word being built uo
- * --gameState: object containing board and the players
- * --validAdjacentPositions: locations letters adjacent to the current letter
- * -------------------
- * Recursively finds valid words on the board.  Each call checks if any of the
- * surrounding adjacent letters (validAdjacentPositions), form the beginings of
- * a word.  If not, the function backtracks out of the recursion one level and
- * checks the next adjacent letter.
- *
- * The location path on the board of the current word being formed is tracked in
- * the Player object inside the game state object.
- */ 
+* Function: FindWords
+* --prefix: - word being built uo
+* --gameState: object containing board and the players
+* --validAdjacentPositions: locations letters adjacent to the current letter
+* -------------------
+* Recursively finds valid words on the board.  Each call checks if any of the
+* surrounding adjacent letters (validAdjacentPositions), form the beginings of
+* a word.  If not, the function backtracks out of the recursion one level and
+* checks the next adjacent letter.
+*
+* The location path on the board of the current word being formed is tracked in
+* the Player object inside the game state object.
+*/ 
 void FindWords(string prefix, 
                GameState& gameState, 
                Set<Location>& validAdjacentPositions);
 
 /* 
- * Function: ValidateWord
- * --gameState: object containing board and the players
- * -------------------
- * Validates that a word is valid and exists on the board.
- * The word must be of minimum length (4), and use a path of
- * adjacent letters without using the same letter for a word.
- * 
- * Calls into the ValidateWord recursion helper below.
- * returns true if the word is valid.
- */ 
+* Function: ValidateWord
+* --gameState: object containing board and the players
+* -------------------
+* Validates that a word is valid and exists on the board.
+* The word must be of minimum length (4), and use a path of
+* adjacent letters without using the same letter for a word.
+* 
+* Calls into the ValidateWord recursion helper below.
+* returns true if the word is valid.
+*/ 
 bool ValidateWord(string word, GameState& gameState);
 
 
 /* 
- * Function: ValidateWord
- * --fragment: a portion of the word being validated
- * --lastLetterLoc: location of the last found letter
- * --gameState: object containing board and the players
- * -------------------
- * Recursively attempts find the letters that comprise the word
- * on the board such that the letters are adjacent on the board.
- * 
- * Starts with the first letter of the word fragment, finds it,
- * then calls itself with the next word fragment with is the current
- * fragment minus the first letter.
- * Returns true if it gets down to an empty string.
- * Returns false if it can't find a valid path.
- * 
- * 
- */ 
+* Function: ValidateWord
+* --fragment: a portion of the word being validated
+* --lastLetterLoc: location of the last found letter
+* --gameState: object containing board and the players
+* -------------------
+* Recursively attempts find the letters that comprise the word
+* on the board such that the letters are adjacent on the board.
+* 
+* Starts with the first letter of the word fragment, finds it,
+* then calls itself with the next word fragment with is the current
+* fragment minus the first letter.
+* Returns true if it gets down to an empty string.
+* Returns false if it can't find a valid path.
+* 
+* 
+*/ 
 bool ValidateWord(string fragment, 
                   const Location& lastLetterLoc, 
                   GameState& gameState);
 
 /* 
- * Function: GetValidPositions
- * -------------------
- * For a give location on the board, find all the *valid* adjacent letter 
- * locations and put them in the validPositionsOut Set.  A valid position 
- * is one that is not currently in use for the current word.
- */ 
+* Function: GetValidPositions
+* -------------------
+* For a give location on the board, find all the *valid* adjacent letter 
+* locations and put them in the validPositionsOut Set.  A valid position 
+* is one that is not currently in use for the current word.
+*/ 
 void GetValidPositions(GameState& gameState, 
                        const Location& boardLoc, 
                        Set<Location>& validPositionsOut);
@@ -336,51 +344,51 @@ void GetValidPositions(GameState& gameState,
 ///////////////////////////////////////////////////////////////////////////////
 
 /* 
- * Function: YesNoPrompt
- * --message: message to print before prompting for input
- * -------------------
- * Prints the specified message and prompts the user for "yes" or "no".
- * Keeps asking until one of those is entered.
- * returns true if yes, false if no.
- * case insensitive.
- */ 
+* Function: YesNoPrompt
+* --message: message to print before prompting for input
+* -------------------
+* Prints the specified message and prompts the user for "yes" or "no".
+* Keeps asking until one of those is entered.
+* returns true if yes, false if no.
+* case insensitive.
+*/ 
 bool YesNoPrompt(string message);
 
 /* 
- * Function: GiveInstructions
- * -------------------
- * Prints out the canned game instructions text.
- */ 
+* Function: GiveInstructions
+* -------------------
+* Prints out the canned game instructions text.
+*/ 
 void GiveInstructions();
 
 /* 
- * Function: Welcome
- * -------------------
- * Prints out the canned welcome text supplied with this file.
- */ 
+* Function: Welcome
+* -------------------
+* Prints out the canned welcome text supplied with this file.
+*/ 
 void Welcome();
 
 /* 
- * Function: ReadDiceFromUser
- * --boardSize: size of boggle board
- * --diceList: vector populated with dice strings
- * -------------------
- * Reads the boggle dice from user input.  The user enters
- * boardSize squared lines.  Each line contains the same 
- * strings as the dice file specified below.
- */ 
+* Function: ReadDiceFromUser
+* --boardSize: size of boggle board
+* --diceList: vector populated with dice strings
+* -------------------
+* Reads the boggle dice from user input.  The user enters
+* boardSize squared lines.  Each line contains the same 
+* strings as the dice file specified below.
+*/ 
 void ReadDiceFromUser(int boardSize, Vector<string>& diceList);
 
 /* 
- * Function: ReadDiceFile
- * --boardSize: size of boggle board
- * --diceList: vector populated with dice strings
- * -------------------
- * Reads the boggle dice from a file.  The file name is based on the
- * number of dice the board holds (boardSize squared).
- * The dice file is boardSize squared lines long.  Each line has six
- * characters in a string, representing a side of each die.
- */ 
+* Function: ReadDiceFile
+* --boardSize: size of boggle board
+* --diceList: vector populated with dice strings
+* -------------------
+* Reads the boggle dice from a file.  The file name is based on the
+* number of dice the board holds (boardSize squared).
+* The dice file is boardSize squared lines long.  Each line has six
+* characters in a string, representing a side of each die.
+*/ 
 void ReadDiceFile(int boardSize, Vector<string>& diceList);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -388,22 +396,22 @@ void ReadDiceFile(int boardSize, Vector<string>& diceList);
 ///////////////////////////////////////////////////////////////////////////////
 
 /* 
- * Function: LabelAllCubes
- * --board:  boggle game board grid.
- * -------------------
- * Draw all the letters in the board object on the display.
- */ 
+* Function: LabelAllCubes
+* --board:  boggle game board grid.
+* -------------------
+* Draw all the letters in the board object on the display.
+*/ 
 void LabelAllCubes(Grid<char>& board);
 
 /* 
- * Function: FlashWordPath
- * --wordPath: path of locations that traces out word on board
- * --letterDelay: time in seconds to pause between highlighting a letter
- * --wordDelay: time in seconds to leave word highlighted
- * -------------------
- * Highlights a word on the display.  Incrementally highlights each letter
- * then after wordDelay seconds, unhighlights the entire word.
- */ 
+* Function: FlashWordPath
+* --wordPath: path of locations that traces out word on board
+* --letterDelay: time in seconds to pause between highlighting a letter
+* --wordDelay: time in seconds to leave word highlighted
+* -------------------
+* Highlights a word on the display.  Incrementally highlights each letter
+* then after wordDelay seconds, unhighlights the entire word.
+*/ 
 void FlashWordPath(Vector<Location>& wordPath, 
                    double letterDelay, double wordDelay);
 
@@ -412,78 +420,78 @@ void FlashWordPath(Vector<Location>& wordPath,
 ///////////////////////////////////////////////////////////////////////////////
 
 /* 
- * Function: PopulateBoard
- * -------------------
- * Randomly populates the game board.  For each board cell, a random "die" 
- * is selected from the diceList.  The die is just a string where each
- * represents a side of the die.  That die is removed from the diceList
- * so it does not get reused.  Then a random side of the die is randomly 
- * selected and assigned to the board cell.
- * 
- */ 
+* Function: PopulateBoard
+* -------------------
+* Randomly populates the game board.  For each board cell, a random "die" 
+* is selected from the diceList.  The die is just a string where each
+* represents a side of the die.  That die is removed from the diceList
+* so it does not get reused.  Then a random side of the die is randomly 
+* selected and assigned to the board cell.
+* 
+*/ 
 void PopulateBoard(Grid<char>& board, Vector<string>& diceList);
 
 /* 
- * Function: GetLexicon
- * -------------------
- * Returns a reference to a static Lexicon object.
- * Used for checking the validity of words and word-fragments.
- * 
- */ 
+* Function: GetLexicon
+* -------------------
+* Returns a reference to a static Lexicon object.
+* Used for checking the validity of words and word-fragments.
+* 
+*/ 
 Lexicon& GetLexicon();
 
 /* 
- * Function: IsQ
- * --c: char being tested
- * -------------------
- * returns true if the char passed is a 'Q'.
- */ 
+* Function: IsQ
+* --c: char being tested
+* -------------------
+* returns true if the char passed is a 'Q'.
+*/ 
 bool IsQ(char c);
 
 /* 
- * Function: toUpper
- *--str: string to be transformed.
- * -------------------
- * Changes a string reference to all upper case.
- * also returns the same reference.
- */ 
+* Function: toUpper
+*--str: string to be transformed.
+* -------------------
+* Changes a string reference to all upper case.
+* also returns the same reference.
+*/ 
 string toUpper(std::string &str);
 
 /* 
- * Function: AppendCharacter
- * --prefix: string that will be appened to
- * --c: char that will be appened
- * --useQu: Controls Q behavior
- * -------------------
- * Appends the specified character to the string prefix.
- * If useQu is true and the character is a Q, then QU will
- * be appended.
- * 
- */ 
+* Function: AppendCharacter
+* --prefix: string that will be appened to
+* --c: char that will be appened
+* --useQu: Controls Q behavior
+* -------------------
+* Appends the specified character to the string prefix.
+* If useQu is true and the character is a Q, then QU will
+* be appended.
+* 
+*/ 
 string BuildWord(string prefix, char c, bool useQu);
 
 /* 
- * Function: DecrementWord
- * --fragment: string being shrunk
- * --useQu: Controls Q behavior
- * -------------------
- * Returns in effect fragment.substr(1), unless the useQu is set to true
- * and fragment[0] is Q or q, in which case it will perform fragment.substr(2);
- * 
- */ 
+* Function: DecrementWord
+* --fragment: string being shrunk
+* --useQu: Controls Q behavior
+* -------------------
+* Returns in effect fragment.substr(1), unless the useQu is set to true
+* and fragment[0] is Q or q, in which case it will perform fragment.substr(2);
+* 
+*/ 
 string DecrementWord(string fragment, bool useQu);
 
 /* 
- * Function: Is1stLetterEqual
- * --letter: char being compared
- * --wordFrag: string whose 1st letter is being compared
- * --useQu: Controls Q behavior
- * -------------------
- * This function compares a char to the first letter of a string.
- * If the useQu flag is set to true, a char Q will be treated as "QU" and
- * QU will be compared against the first two letters of the string.
- * 
- */ 
+* Function: Is1stLetterEqual
+* --letter: char being compared
+* --wordFrag: string whose 1st letter is being compared
+* --useQu: Controls Q behavior
+* -------------------
+* This function compares a char to the first letter of a string.
+* If the useQu flag is set to true, a char Q will be treated as "QU" and
+* QU will be compared against the first two letters of the string.
+* 
+*/ 
 bool Is1stLetterEqual(char letter, string wordFrag, bool useQu);
 
 
@@ -516,7 +524,7 @@ bool IsQ(char c) {
 // I stole this toLower/Upper func from a c++ forum.
 // http://www.cplusplus.com/forum/general/837/#msg2843
 string toUpper(std::string &str) {
-	std::transform(str.begin(), str.end(), str.begin(), std::toupper);
+  std::transform(str.begin(), str.end(), str.begin(), std::toupper);
   return str;
 }
 
@@ -542,7 +550,7 @@ bool Is1stLetterEqual(char boardLetter, string wordFrag, bool useQu) {
       string first = wordFrag.substr(0, 2);
       return  first == "QU";
     }
-  return boardLetter == wordFrag[0];
+    return boardLetter == wordFrag[0];
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -641,22 +649,27 @@ bool ValidateWord(string fragment, const Location& lastLetterLoc, GameState& gam
 void GetValidPositions(GameState& gameState, 
                        const Location& currentGridLoc, 
                        Set<Location>& validPositionsOut) {
-  Set<Location> currentWordPath = gameState.GetCurrentPlayer().GetCurrentPath();
-  for (int dRow = -1; dRow <= 1; dRow++) {
-    for (int dCol = -1; dCol <= 1; dCol++) {
-      int nRow = currentGridLoc.row + dRow;
-      int nCol = currentGridLoc.col + dCol;
-      //ignore the off-grid cells, 
-      if (nRow >= 0 && nCol >= 0 &&
-        !(nRow == currentGridLoc.row && nCol == currentGridLoc.col) &&
-        nRow < gameState.board.numRows() && nCol < gameState.board.numCols()) {
-          Location newLocation(nRow, nCol);
-          if (!currentWordPath.contains(newLocation)) {
-            validPositionsOut.add(newLocation);
-          }
-      }
-    }
-  }
+   Set<Location> currentWordPath = gameState.GetCurrentPlayer().GetCurrentPath();
+   for (int dRow = -1; dRow <= 1; dRow++) {
+     for (int dCol = -1; dCol <= 1; dCol++) {
+       int nRow = currentGridLoc.row + dRow;
+       int nCol = currentGridLoc.col + dCol;
+       //on-grid (positive) cells
+       if (nRow >= 0 && nCol >= 0 ) {
+         //not our own cell 
+         if (!(nRow == currentGridLoc.row && nCol == currentGridLoc.col)) {
+           // cells that are within the outer bounds of the gi
+           if (nRow < gameState.board.numRows() && nCol < gameState.board.numCols()) {
+             Location newLocation(nRow, nCol);
+             // not a location that has been used for this word already
+             if (!currentWordPath.contains(newLocation)) {
+               validPositionsOut.add(newLocation);
+             }
+           }
+         }
+       }
+     }
+   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -704,8 +717,8 @@ void Welcome()
 
 void ReadDiceFromUser(int boardSize, Vector<string>& diceList) {
   cout << "Enter a 16-character string to identify which letters you want on the cubes." << endl
-      << "The first 4 letters are the cubes on the top row from left to right" << endl
-      << "next 4 letters are the second row, etc." << endl;
+    << "The first 4 letters are the cubes on the top row from left to right" << endl
+    << "next 4 letters are the second row, etc." << endl;
   for (int i = 0; i < (boardSize * boardSize); i++) {
     while (true) {
       cout << "Enter line #" << (i + 1) << ":";
@@ -757,16 +770,16 @@ void LabelAllCubes(Grid<char>& board) {
 
 void FlashWordPath(Vector<Location>& wordPath, 
                    double letterDelay, double wordDelay) {
-  foreach (Location cell in wordPath) {
-    HighlightCube(cell.row, cell.col, true);
-    UpdateDisplay();
-    Pause(letterDelay);
-  }
-  Pause(wordDelay);
-  foreach (Location cell in wordPath) {
-    HighlightCube(cell.row, cell.col, false);
-  }
-  UpdateDisplay();
+                     foreach (Location cell in wordPath) {
+                       HighlightCube(cell.row, cell.col, true);
+                       UpdateDisplay();
+                       Pause(letterDelay);
+                     }
+                     Pause(wordDelay);
+                     foreach (Location cell in wordPath) {
+                       HighlightCube(cell.row, cell.col, false);
+                     }
+                     UpdateDisplay();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -797,6 +810,7 @@ void ComputerPlays(GameState& gameState) {
   Set<string> foundWordSet;
   gameState.GetCurrentPlayer().GetFoundWords(foundWordSet);
   PlayNamedSound("tweetle.wav");
+  //display the words and flash them.
   foreach (string word in foundWordSet) {
     RecordWordForPlayer(word, Computer);
     Vector<Location>& wordPath = gameState.GetCurrentPlayer().GetPathForWord(word);
