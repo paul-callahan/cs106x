@@ -373,11 +373,10 @@ void Welcome();
 * --boardSize: size of boggle board
 * --diceList: vector populated with dice strings
 * -------------------
-* Reads the boggle dice from user input.  The user enters
-* boardSize squared lines.  Each line contains the same 
-* strings as the dice file specified below.
+* Reads the boggle values from user input.  The user enters
+* a boardSize-squared size string. 
 */ 
-void ReadDiceFromUser(int boardSize, Vector<string>& diceList);
+string ReadDiceFromUser(int boardSize);
 
 /* 
 * Function: ReadDiceFile
@@ -452,6 +451,14 @@ void ComputerPlays(GameState& gameState);
 * 
 */ 
 void PopulateBoard(Grid<char>& board, Vector<string>& diceList);
+
+/* 
+* Function: PopulateBoard
+* -------------------
+* Populates the game board with the given string of chars from
+* boardLetters
+*/ 
+void PopulateBoard(Grid<char>& board, string boardLetters);
 
 /* 
 * Function: GetLexicon
@@ -564,18 +571,24 @@ void FindWords(string prefix, GameState& gameState, Set<Location>& validPosition
 bool ValidateWord(string word, GameState& gameState) {
   Lexicon& lexicon = GetLexicon();
   toUpper(word);
-  if (lexicon.containsWord(word)) {
-    for (int row = 0; row < gameState.board.numRows(); row++) {
-      for (int col = 0; col < gameState.board.numCols(); col++) {
-        //try a letter location that is the same as the first letter of word
-        if (Is1stLetterEqual(gameState.board[row][col], word, true)) {
-          string nextFragment = DecrementWord(word, true);
-          if (ValidateWord(nextFragment, Location(row, col), gameState)) {
-            //we found a path, so the word is valid.
-            gameState.GetCurrentPlayer().AddFoundWord(word);
-            gameState.GetCurrentPlayer().ClearCurrentPath();
-            return true;
-          }
+  if (word.size() < MIN_WORD_SIZE) {
+    cout << "Word too short.  ";
+    return false;
+  }
+  if (!lexicon.containsWord(word)) {
+    cout << "Word not in lexicon.   ";
+    return false;
+  }
+  for (int row = 0; row < gameState.board.numRows(); row++) {
+    for (int col = 0; col < gameState.board.numCols(); col++) {
+      //try a letter location that is the same as the first letter of word
+      if (Is1stLetterEqual(gameState.board[row][col], word, true)) {
+        string nextFragment = DecrementWord(word, true);
+        if (ValidateWord(nextFragment, Location(row, col), gameState)) {
+          //we found a path, so the word is valid.
+          gameState.GetCurrentPlayer().AddFoundWord(word);
+          gameState.GetCurrentPlayer().ClearCurrentPath();
+          return true;
         }
       }
     }
@@ -679,18 +692,17 @@ void Welcome()
 
 
 
-void ReadDiceFromUser(int boardSize, Vector<string>& diceList) {
+string ReadDiceFromUser(int boardSize) {
   cout << "Enter a 16-character string to identify which letters you want on the cubes." << endl
-    << "The first 4 letters are the cubes on the top row from left to right" << endl
-    << "next 4 letters are the second row, etc." << endl;
+       << "The first 4 letters are the cubes on the top row from left to right" << endl
+       << "next 4 letters are the second row, etc." << endl;
   for (int i = 0; i < (boardSize * boardSize); i++) {
     while (true) {
-      cout << "Enter line #" << (i + 1) << ":";
+      cout << "Enter string: ";
       string input = GetLine();
       toUpper(input);
-      if (input.size() == NUM_SIDES_ON_DIE) {
-        diceList.add(input);
-        break;
+      if (input.size() == (boardSize * boardSize)) {
+        return input;
       } else {
         cout << "Invalid input" << endl;
       }
@@ -751,6 +763,7 @@ void FlashWordPath(Vector<Location>& wordPath,
 ///////////////////////////////////////////////////////////////////////////////
 
 void HumanPlays(GameState& gameState) {
+  cout << endl << "It is now your turn to play." << endl;
   while (true) {
     cout << "Enter a word: ";
     string word = GetLine();
@@ -770,6 +783,7 @@ void HumanPlays(GameState& gameState) {
 }
 
 void ComputerPlays(GameState& gameState) {
+  cout << endl << "The computer will now play." << endl;
   FindWords(gameState);
   Set<string> foundWordSet;
   gameState.GetCurrentPlayer().GetFoundWords(foundWordSet);
@@ -793,12 +807,15 @@ int main() {
   if (YesNoPrompt("Do you need instructions?"))
     GiveInstructions();
   while (true) {
-    if (YesNoPrompt("Do you want to enter your own board?"))
-      ReadDiceFromUser(BOARD_SIZE, diceList);
-    else
-      ReadDiceFile(BOARD_SIZE, diceList);
     GameState gameState;
-    PopulateBoard(gameState.board, diceList);
+    if (YesNoPrompt("Do you want to enter your own board?")) {
+      PopulateBoard(gameState.board, ReadDiceFromUser(BOARD_SIZE));
+    }
+    else {
+      ReadDiceFile(BOARD_SIZE, diceList);
+      PopulateBoard(gameState.board, diceList);
+    }
+    
     LabelAllCubes(gameState.board);
 
     HumanPlays(gameState);
@@ -828,6 +845,13 @@ void PopulateBoard(Grid<char>& board, Vector<string>& diceList) {
       int sideIndex = RandomInteger(0, NUM_SIDES_ON_DIE -1);
       board[row][col] = die[sideIndex];
     }
+  }
+}
+
+void PopulateBoard(Grid<char>& board, string boardLetters) {
+  int boardSize = board.numCols();
+  for (int i = 0; i < boardLetters.size(); i++) {
+    board[ i/ boardSize ][i % boardSize] = boardLetters[i];
   }
 }
 
@@ -907,26 +931,11 @@ void TestPopulateBoard() {
 
 void TestFindWord() {
   GameState gameState;
+  PopulateBoard(gameState.board, 
+    "CAREOZOIDFLQAEPT");
 
-  gameState.board[0][0] = 'C';
-  gameState.board[0][1] = 'A';
-  gameState.board[0][2] = 'R';
-  gameState.board[0][3] = 'E';
+  
 
-  gameState.board[1][0] = 'O';
-  gameState.board[1][1] = 'Z';
-  gameState.board[1][2] = 'O';
-  gameState.board[1][3] = 'I';
-
-  gameState.board[2][0] = 'D';
-  gameState.board[2][1] = 'F';
-  gameState.board[2][2] = 'L';
-  gameState.board[2][3] = 'Q';
-
-  gameState.board[3][0] = 'A';
-  gameState.board[3][1] = 'E';
-  gameState.board[3][2] = 'P';
-  gameState.board[3][3] = 'T';
   bool found = ValidateWord("QUILT", gameState);
   gameState.ComputersTurn();
   FindWords(gameState);
