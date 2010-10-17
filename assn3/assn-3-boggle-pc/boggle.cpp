@@ -416,6 +416,28 @@ void FlashWordPath(Vector<Location>& wordPath,
                    double letterDelay, double wordDelay);
 
 ///////////////////////////////////////////////////////////////////////////////
+//   Game Play Methods
+///////////////////////////////////////////////////////////////////////////////
+
+/* 
+* Function: HumanPlays
+* --gameState: object containing board and the players
+* -------------------
+* Human plays, entering words in from the command prompt.
+*/
+void HumanPlays(GameState& gameState);
+
+/* 
+* Function: ComputerPlays
+* --gameState: object containing board and the players
+* -------------------
+* Computer takes its turn, finding all the words the pathetic human
+* misses.
+*/
+void ComputerPlays(GameState& gameState);
+
+
+///////////////////////////////////////////////////////////////////////////////
 //   Utility methods
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -468,7 +490,7 @@ string toUpper(std::string &str);
 * be appended.
 * 
 */ 
-string BuildWord(string prefix, char c, bool useQu);
+string AppendCharacter(string prefix, char c, bool useQu);
 
 /* 
 * Function: DecrementWord
@@ -495,63 +517,6 @@ string DecrementWord(string fragment, bool useQu);
 bool Is1stLetterEqual(char letter, string wordFrag, bool useQu);
 
 
-///////////////////////////////////////////////////////////////////////////////
-//   Utility methods
-///////////////////////////////////////////////////////////////////////////////
-
-void PopulateBoard(Grid<char>& board, Vector<string>& diceList) {
-  for (int row = 0; row < board.numRows(); row++) {
-    for (int col = 0; col < board.numCols(); col++) {
-      int dieIndex = RandomInteger(0, diceList.size() -1);
-      string die = diceList.getAt(dieIndex);
-      diceList.removeAt(dieIndex);
-      int sideIndex = RandomInteger(0, NUM_SIDES_ON_DIE -1);
-      board[row][col] = die[sideIndex];
-    }
-  }
-}
-
-
-Lexicon& GetLexicon() {
-  static Lexicon lexicon("lexicon.dat");
-  return lexicon;
-}
-
-bool IsQ(char c) {
-  return c == 'Q' || c == 'q';
-}
-
-// I stole this toLower/Upper func from a c++ forum.
-// http://www.cplusplus.com/forum/general/837/#msg2843
-string toUpper(std::string &str) {
-  std::transform(str.begin(), str.end(), str.begin(), std::toupper);
-  return str;
-}
-
-string AppendCharacter(string prefix, char nextLetter, bool useQu) {
-  if (useQu) {
-    if (IsQ(nextLetter))
-      return prefix + "QU";
-  }
-  return prefix + nextLetter;
-}
-
-string DecrementWord(string fragment, bool useQu) {
-  if (useQu) 
-    if (IsQ(fragment[0]))
-      return fragment.substr(2);
-  return fragment.substr(1);
-}
-
-bool Is1stLetterEqual(char boardLetter, string wordFrag, bool useQu) {
-  //TODO: do something to handle "Qu"
-  if (useQu)
-    if (IsQ(boardLetter)) {
-      string first = wordFrag.substr(0, 2);
-      return  first == "QU";
-    }
-    return boardLetter == wordFrag[0];
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 //   find and validate word methods
@@ -619,7 +584,6 @@ bool ValidateWord(string word, GameState& gameState) {
   gameState.GetCurrentPlayer().ClearCurrentPath();
   return false;
 }
-
 
 bool ValidateWord(string fragment, const Location& lastLetterLoc, GameState& gameState) {
   // base case - we've whittled the string down to nothing after finding all the
@@ -770,16 +734,16 @@ void LabelAllCubes(Grid<char>& board) {
 
 void FlashWordPath(Vector<Location>& wordPath, 
                    double letterDelay, double wordDelay) {
-                     foreach (Location cell in wordPath) {
-                       HighlightCube(cell.row, cell.col, true);
-                       UpdateDisplay();
-                       Pause(letterDelay);
-                     }
-                     Pause(wordDelay);
-                     foreach (Location cell in wordPath) {
-                       HighlightCube(cell.row, cell.col, false);
-                     }
-                     UpdateDisplay();
+   foreach (Location cell in wordPath) {
+     HighlightCube(cell.row, cell.col, true);
+     UpdateDisplay();
+     Pause(letterDelay);
+   }
+   Pause(wordDelay);
+   foreach (Location cell in wordPath) {
+     HighlightCube(cell.row, cell.col, false);
+   }
+   UpdateDisplay();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -849,6 +813,64 @@ int main() {
     DrawBoard(BOARD_SIZE, BOARD_SIZE);
   }
   return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//   Utility methods
+///////////////////////////////////////////////////////////////////////////////
+
+void PopulateBoard(Grid<char>& board, Vector<string>& diceList) {
+  for (int row = 0; row < board.numRows(); row++) {
+    for (int col = 0; col < board.numCols(); col++) {
+      int dieIndex = RandomInteger(0, diceList.size() -1);
+      string die = diceList.getAt(dieIndex);
+      diceList.removeAt(dieIndex);
+      int sideIndex = RandomInteger(0, NUM_SIDES_ON_DIE -1);
+      board[row][col] = die[sideIndex];
+    }
+  }
+}
+
+
+Lexicon& GetLexicon() {
+  static Lexicon lexicon("lexicon.dat");
+  return lexicon;
+}
+
+bool IsQ(char c) {
+  return c == 'Q' || c == 'q';
+}
+
+// I stole this toLower/Upper func from a c++ forum.
+// http://www.cplusplus.com/forum/general/837/#msg2843
+string toUpper(std::string &str) {
+  std::transform(str.begin(), str.end(), str.begin(), std::toupper);
+  return str;
+}
+
+string AppendCharacter(string prefix, char nextLetter, bool useQu) {
+  if (useQu) {
+    if (IsQ(nextLetter))
+      return prefix + "QU";
+  }
+  return prefix + nextLetter;
+}
+
+string DecrementWord(string fragment, bool useQu) {
+  if (useQu) 
+    if (IsQ(fragment[0]))
+      return fragment.substr(2);
+  return fragment.substr(1);
+}
+
+bool Is1stLetterEqual(char boardLetter, string wordFrag, bool useQu) {
+  //TODO: do something to handle "Qu"
+  if (useQu)
+    if (IsQ(boardLetter)) {
+      string first = wordFrag.substr(0, 2);
+      return  first == "QU";
+    }
+    return boardLetter == wordFrag[0];
 }
 
 ///////////////////////////////////////////////////////////////////////////////
