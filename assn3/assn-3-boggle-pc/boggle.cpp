@@ -14,11 +14,14 @@
 #include "grid.h"
 #include "map.h"
 #include "vector.h"
-#include "disallowcopy.h"
 #include <iostream>
 #include <algorithm>
+#include "random.h"
 
 const int MIN_WORD_SIZE = 4;
+const int NUM_SIDES_ON_DIE = 6;
+
+
 
 
 struct Location {
@@ -44,17 +47,17 @@ class Player {
 public:
   Player(): score(0) { }
 
-  void AddToCurrentPath(Location& location) {
-    currentWordLetterLocations.add(location);
-    currentWordPath.add(location);
-  }
-
   void AddBlackListedWord(string word) {
     otherPlayersWords.add(word);
   }
 
   Set<string>& GetBlackListedWords() {
     return otherPlayersWords;
+  }
+
+  void AddToCurrentPath(Location& location) {
+    currentWordLetterLocations.add(location);
+    currentWordPath.add(location);
   }
 
   const Set<Location>& GetCurrentPath() {
@@ -68,9 +71,14 @@ public:
       currentWordLetterLocations.remove(lastLocation);
     }
   }
+
   void ClearCurrentPath() {
     currentWordLetterLocations.clear();
     currentWordPath.clear();
+  }
+  
+  Vector<Location>& GetPathForWord(const string& word) {
+    return wordsToPath.get(word);
   }
 
   void GetFoundWords(Set<string>& outWordSet) {
@@ -123,16 +131,9 @@ public:
   Player& currentPlayer;
 };
 
-/* 
- * Function: GetValidPositions
- * -------------------
- * For a give location on the board, find all the *valid* adjacent letter 
- * locations and put them in the validPositionsOut Set.  A valid position 
- * is one that is not currently in use for the current word.
- */ 
-void GetValidPositions(GameState& gameState, 
-                       const Location& boardLoc, 
-                       Set<Location>& validPositionsOut);
+///////////////////////////////////////////////////////////////////////////////
+//   find and validate word methods
+///////////////////////////////////////////////////////////////////////////////
 
 /* 
  * Function: FindWords
@@ -175,6 +176,7 @@ void FindWords(string prefix,
  * adjacent letters without using the same letter for a word.
  * 
  * Calls into the ValidateWord recursion helper below.
+ * returns true if the word is valid.
  */ 
 bool ValidateWord(string word, GameState& gameState);
 
@@ -185,7 +187,14 @@ bool ValidateWord(string word, GameState& gameState);
  * --lastLetterLoc: location of the last found letter
  * --gameState: object containing board and the players
  * -------------------
+ * Recursively attempts find the letters that comprise the word
+ * on the board such that the letters are adjacent on the board.
  * 
+ * Starts with the first letter of the word fragment, finds it,
+ * then calls itself with the next word fragment with is the current
+ * fragment minus the first letter.
+ * Returns true if it gets down to an empty string.
+ * Returns false if it can't find a valid path.
  * 
  * 
  */ 
@@ -194,15 +203,30 @@ bool ValidateWord(string fragment,
                   GameState& gameState);
 
 /* 
- * Function: Is1stLetterEqual
+ * Function: GetValidPositions
  * -------------------
- * 
- * 
+ * For a give location on the board, find all the *valid* adjacent letter 
+ * locations and put them in the validPositionsOut Set.  A valid position 
+ * is one that is not currently in use for the current word.
+ */ 
+void GetValidPositions(GameState& gameState, 
+                       const Location& boardLoc, 
+                       Set<Location>& validPositionsOut);
+///////////////////////////////////////////////////////////////////////////////
+//   Utility methods
+///////////////////////////////////////////////////////////////////////////////
+
+/* 
+ * Function: PopulateBoard
+ * -------------------
+ * Randomly populates the game board.  For each board cell, a random "die" 
+ * is selected from the diceList.  The die is just a string where each
+ * represents a side of the die.  That die is removed from the diceList
+ * so it does not get reused.  Then a random side of the die is randomly 
+ * selected and assigned to the board cell.
  * 
  */ 
-bool Is1stLetterEqual(char boardLetter, 
-                      string wordFrag, 
-                      bool useQu);
+void PopulateBoard(Grid<char>& board, Vector<string>& diceList);
 
 /* 
  * Function: GetLexicon
@@ -233,17 +257,20 @@ string toUpper(std::string &str);
 /* 
  * Function: AppendCharacter
  * --prefix: string that will be appened to
- * --nextLetter: char that will be appened
+ * --c: char that will be appened
  * --useQu: Controls Q behavior
  * -------------------
- * 
- * 
+ * Appends the specified character to the string prefix.
+ * If useQu is true and the character is a Q, then QU will
+ * be appended.
  * 
  */ 
-string BuildWord(string prefix, char nextLetter, bool useQu);
+string BuildWord(string prefix, char c, bool useQu);
 
 /* 
  * Function: DecrementWord
+ * --fragment: string being shrunk
+ * --useQu: Controls Q behavior
  * -------------------
  * Returns in effect fragment.substr(1), unless the useQu is set to true
  * and fragment[0] is Q or q, in which case it will perform fragment.substr(2);
@@ -253,13 +280,33 @@ string DecrementWord(string fragment, bool useQu);
 
 /* 
  * Function: Is1stLetterEqual
+ * --letter: char being compared
+ * --wordFrag: string whose 1st letter is being compared
+ * --useQu: Controls Q behavior
  * -------------------
  * This function compares a char to the first letter of a string.
  * If the useQu flag is set to true, a char Q will be treated as "QU" and
  * QU will be compared against the first two letters of the string.
  * 
  */ 
-bool Is1stLetterEqual(char boardLetter, string wordFrag, bool useQu);
+bool Is1stLetterEqual(char letter, string wordFrag, bool useQu);
+
+
+///////////////////////////////////////////////////////////////////////////////
+//   Utility methods
+///////////////////////////////////////////////////////////////////////////////
+
+void PopulateBoard(Grid<char>& board, Vector<string>& diceList) {
+  for (int row = 0; row < board.numRows(); row++) {
+    for (int col = 0; col < board.numCols(); col++) {
+      int dieIndex = RandomInteger(0, diceList.size() -1);
+      string die = diceList.getAt(dieIndex);
+      diceList.removeAt(dieIndex);
+      int sideIndex = RandomInteger(0, NUM_SIDES_ON_DIE -1);
+      board[row][col] = die[sideIndex];
+    }
+  }
+}
 
 
 Lexicon& GetLexicon() {
@@ -387,6 +434,26 @@ bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState)
   return false;
 }
 
+void GetValidPositions(GameState& gameState, 
+                       const Location& currentGridLoc, 
+                       Set<Location>& validPositionsOut) {
+  Set<Location> currentWordPath = gameState.GetCurrentPlayer().GetCurrentPath();
+  for (int dRow = -1; dRow <= 1; dRow++) {
+    for (int dCol = -1; dCol <= 1; dCol++) {
+      int nRow = currentGridLoc.row + dRow;
+      int nCol = currentGridLoc.col + dCol;
+      if (nRow >= 0 && nCol >= 0 &&
+        !(nRow == currentGridLoc.row && nCol == currentGridLoc.col) &&
+        nRow < gameState.board.numRows() && nCol < gameState.board.numCols()) {
+          Location newLocation(nRow, nCol);
+          if (!currentWordPath.contains(newLocation)) {
+            validPositionsOut.add(newLocation);
+          }
+      }
+    }
+  }
+}
+
 
 void GiveInstructions()
 {
@@ -460,25 +527,8 @@ string PathToString(Vector<Location>& path) {
 }
 
 
-void GetValidPositions(GameState& gameState, 
-                       const Location& currentGridLoc, 
-                       Set<Location>& validPositionsOut) {
-  Set<Location> currentWordPath = gameState.GetCurrentPlayer().GetCurrentPath();
-  for (int dRow = -1; dRow <= 1; dRow++) {
-    for (int dCol = -1; dCol <= 1; dCol++) {
-      int nRow = currentGridLoc.row + dRow;
-      int nCol = currentGridLoc.col + dCol;
-      if (nRow >= 0 && nCol >= 0 &&
-        !(nRow == currentGridLoc.row && nCol == currentGridLoc.col) &&
-        nRow < gameState.board.numRows() && nCol < gameState.board.numCols()) {
-          Location newLocation(nRow, nCol);
-          if (!currentWordPath.contains(newLocation)) {
-            validPositionsOut.add(newLocation);
-          }
-      }
-    }
-  }
-}
+
+
 
 void TestFindWord() {
   GameState gameState;
@@ -512,7 +562,101 @@ void TestFindWord() {
 
 }
 
+void ReadDiceFile(int boardSize, Vector<string>& diceList) {
+  string fileName = "cubes" + IntegerToString(boardSize * boardSize) + ".txt";
+  ifstream fileStream;
+  fileStream.open(fileName.c_str());
+  if (fileStream.fail()) {
+    Error("Could not open file: " + fileName );
+  }
+  string line;
+  while (!fileStream.eof()) {
+    getline(fileStream, line);
+    if (!line.empty()) {
+      if (line.size() != NUM_SIDES_ON_DIE) 
+        Error("Invalid line on dice file: " + line);
+      diceList.add(line);
+    }
+  }
+  fileStream.close();
+  if (diceList.size() != (boardSize*boardSize))
+    Error("Incorrect number of dice in file: " + fileName);
+}
+
+void LabelAllCubes(Grid<char>& board) {
+  for (int row = 0; row < board.numRows(); row++) {
+    for (int col = 0; col < board.numCols(); col++) {
+      LabelCube(row, col, board[row][col]);
+    }
+  }
+  UpdateDisplay();
+}
+
+void FlashWordPath(Grid<char>& board, Vector<Location>& wordPath, 
+                   double letterDelay, double wordDelay) {
+  foreach (Location cell in wordPath) {
+    HighlightCube(cell.row, cell.col, true);
+    UpdateDisplay();
+    Pause(letterDelay);
+  }
+  Pause(wordDelay);
+  foreach (Location cell in wordPath) {
+    HighlightCube(cell.row, cell.col, false);
+  }
+  UpdateDisplay();
+}
+
+void PlayGame(GameState& gameState) {
+  Set<string> foundWordSet;
+  //prompt user while loop
+
+  //computer goes
+  gameState.ComputersTurn();
+  //computer finds words
+  FindWords(gameState);
+  //update stats on screen
+  foundWordSet.clear();
+
+  Player computerPlayer = gameState.GetCurrentPlayer();
+
+  gameState.GetCurrentPlayer().GetFoundWords(foundWordSet);
+  foreach (string word in foundWordSet) {
+    RecordWordForPlayer(word, Computer);
+    Vector<Location>& wordPath = gameState.GetCurrentPlayer().GetPathForWord(word);
+    FlashWordPath(gameState.board, wordPath, 0.1, .25); 
+  }
+}
+
+void TestPopulateBoard() {
+  Vector<string> diceList;
+  ReadDiceFile(4, diceList);
+  InitGraphics();
+  DrawBoard(4, 4);
+  GameState gameState;
+  PopulateBoard(gameState.board, diceList);
+
+  LabelAllCubes(gameState.board);
+
+  Vector<Location> wordPath;
+  wordPath.add(Location(0, 0));
+  wordPath.add(Location(1, 1));
+  wordPath.add(Location(2, 2));
+  wordPath.add(Location(3, 3));
+  FlashWordPath(gameState.board, wordPath, 0.1, 0.25);
+
+  PlayGame(gameState);
+
+
+  cout << endl;
+}
+
+
+
 int main() {
-  TestFindWord();
+  Randomize();
+  
+  //TestFindWord();
+
+  TestPopulateBoard();
   return 0;
 }
