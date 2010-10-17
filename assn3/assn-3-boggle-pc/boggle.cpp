@@ -18,21 +18,44 @@
 #include <algorithm>
 #include "random.h"
 
+// required word size
 const int MIN_WORD_SIZE = 4;
+//number of sides on a die
 const int NUM_SIDES_ON_DIE = 6;
+//board width & height
+const int BOARD_SIZE = 4;
 
 
 
-
+/*
+ * Record: Location
+ * ----------
+ * This struct represents a point on the game board.
+ *
+ */
 struct Location {
   int row, col;
   Location(int row, int col): row(row), col(col){};
   Location(): row(-1), col(-1){};
 
+ /*
+  * Method: operator==
+  * ----------------------------
+  * Required for using this record in cs106x container classes
+  * Returns true if this Location is equal to the given location..
+  */
   bool operator==(const Location& other) {
     return other.col == col && other.row == row;
   }
 
+ /*
+  * Method: operator<
+  * ----------------------------
+  * Required for using this record in cs106x container classes
+  * A location is greater than another location if
+  * its row is bigger, or if the rows are the same,
+  * its column is bigger.
+  */
   bool operator<(const Location& other) {
     return other.row < row ||
       (other.row == row && other.col < col);
@@ -40,30 +63,68 @@ struct Location {
 };
 
 
-
-string PathToString(Vector<Location>& path);
-
+/*
+ * Class: Player
+ * ----------
+ * This class represents a player in the game.
+ * Contains words and the paths of those words this
+ * player has found, as well as the list of words
+ * this player is not allowed to use.
+ */
 class Player {
 public:
+
+  //default construtor
   Player(): score(0) { }
 
+  /*
+  * Method: AddBlackListedWord
+  * ----------------------------
+  * Adds specified word to words this player cannot use
+  * (i.e. the other player used them)
+  */
   void AddBlackListedWord(string word) {
-    otherPlayersWords.add(word);
+    blackListedWords.add(word);
   }
 
+  /*
+  * Method: GetBlackListedWords
+  * ----------------------------
+  * Returns the set of words this user cannot
+  * use.  (i.e. the words the other player has
+  * already used.
+  */
   Set<string>& GetBlackListedWords() {
-    return otherPlayersWords;
+    return blackListedWords;
   }
 
-  void AddToCurrentPath(Location& location) {
+  /*
+  * Method: AddToCurrentPath
+  * ----------------------------
+  * Adds a board Location to the currently tracked word path
+  * for this user.
+  */
+  void AddToCurrentPath(const Location& location) {
     currentWordLetterLocations.add(location);
     currentWordPath.add(location);
   }
 
+  /*
+  * Method: GetCurrentPath
+  * ----------------------------
+  * Gets the currently tracked word path for the current word, 
+  * as a set.
+  */
   const Set<Location>& GetCurrentPath() {
     return currentWordLetterLocations; 
   }
 
+  /*
+  * Method: RollbackCurrentPath
+  * ----------------------------
+  * Remove the last added word path location from the 
+  * word path for the currently tracked word.
+  */
   void RollbackCurrentPath() {
     if (currentWordPath.size() > 0) {
       Location lastLocation = currentWordPath[currentWordPath.size()-1];
@@ -72,15 +133,32 @@ public:
     }
   }
 
+  /*
+  * Method: ClearCurrentPath
+  * ----------------------------
+  *  Clear out the currently tracked word path.
+  */
   void ClearCurrentPath() {
     currentWordLetterLocations.clear();
     currentWordPath.clear();
   }
   
-  Vector<Location>& GetPathForWord(const string& word) {
+  /*
+  * Method: GetPathForWord
+  * ----------------------------
+  * Gets the path for a found word, as a vector of elements.
+  * This path is in the same order as the spelling of the word.
+  */
+  Vector<Location> GetPathForWord(const string& word) {
     return wordsToPath.get(word);
   }
 
+  /*
+  * Method: GetFoundWords
+  * ----------------------------
+  * Returns the set of words this user has found on the 
+  * boggle board.
+  */
   void GetFoundWords(Set<string>& outWordSet) {
     //no map.keySet ?  :-/
       foreach (string word in wordsToPath) {
@@ -88,46 +166,86 @@ public:
      }   
   }
 
+  /*
+  * Method: AddFoundWord
+  * ----------------------------
+  * Adds a word to the set of found words.
+  */
   void AddFoundWord(string word) {
-    if (!otherPlayersWords.contains(word)) {
+    if (!blackListedWords.contains(word)) {
       wordsToPath.put(word, currentWordPath);
       score += word.size() - MIN_WORD_SIZE + 1;
-      cout << word << PathToString(currentWordPath) <<    endl;
+      //cout << word << PathToString(currentWordPath) << endl;
     }
   }
 
+  /*
+  * Method: GetScore
+  * ----------------------------
+  *  Returns the current score for this user.
+  */
   int GetScore() { 
     return score; 
   }
 
 private:
+  //score
   int score;
+  // map of found words to vector of loctions (the path)
   Map<Vector<Location> > wordsToPath;
-  Set<Location> currentWordLetterLocations;
+  // currently tracked word path
   Vector<Location> currentWordPath;
-  Set<string> otherPlayersWords;
+  // set of locations for the currently tracked word
+  Set<Location> currentWordLetterLocations;
+  // set of words is user cannot play
+  Set<string> blackListedWords;
 };
 
+
+/*
+ * Class: GameState
+ * ----------
+ * This class represents the state of a game.  Contains
+ * player objects and the board object.
+ */
 class GameState {
 
 public:
-  Grid<char> board;
-  int recursiveCalls;
+
+  //default constructor - sizes board and sets human as 
+  // current player.
   GameState(): currentPlayer(humanPlayer) {
-    board.resize(4, 4);
+    board.resize(BOARD_SIZE, BOARD_SIZE);
   }
 
+  /*
+  * Method: ComputersTurn
+  * ----------------------------
+  * Sets the player currently playing to the computer
+  */
   void ComputersTurn() {
     humanPlayer.GetFoundWords(computerPlayer.GetBlackListedWords());
     currentPlayer = computerPlayer;
   }
 
+  /*
+  * Method: GetCurrentPlayer
+  * ----------------------------
+  * Returns the player object currently playing.
+  */
   Player& GetCurrentPlayer() {
     return currentPlayer;
   }
 
+  // game board
+  Grid<char> board;
+
+private:
+  // human player object
   Player humanPlayer;
+  // computer player object
   Player computerPlayer;
+  // player currently playing
   Player& currentPlayer;
 };
 
@@ -199,7 +317,7 @@ bool ValidateWord(string word, GameState& gameState);
  * 
  */ 
 bool ValidateWord(string fragment, 
-                  Location lastLetterLoc, 
+                  const Location& lastLetterLoc, 
                   GameState& gameState);
 
 /* 
@@ -212,6 +330,83 @@ bool ValidateWord(string fragment,
 void GetValidPositions(GameState& gameState, 
                        const Location& boardLoc, 
                        Set<Location>& validPositionsOut);
+
+///////////////////////////////////////////////////////////////////////////////
+//   Input and Message Methods
+///////////////////////////////////////////////////////////////////////////////
+
+/* 
+ * Function: YesNoPrompt
+ * --message: message to print before prompting for input
+ * -------------------
+ * Prints the specified message and prompts the user for "yes" or "no".
+ * Keeps asking until one of those is entered.
+ * returns true if yes, false if no.
+ * case insensitive.
+ */ 
+bool YesNoPrompt(string message);
+
+/* 
+ * Function: GiveInstructions
+ * -------------------
+ * Prints out the canned game instructions text.
+ */ 
+void GiveInstructions();
+
+/* 
+ * Function: Welcome
+ * -------------------
+ * Prints out the canned welcome text supplied with this file.
+ */ 
+void Welcome();
+
+/* 
+ * Function: ReadDiceFromUser
+ * --boardSize: size of boggle board
+ * --diceList: vector populated with dice strings
+ * -------------------
+ * Reads the boggle dice from user input.  The user enters
+ * boardSize squared lines.  Each line contains the same 
+ * strings as the dice file specified below.
+ */ 
+void ReadDiceFromUser(int boardSize, Vector<string>& diceList);
+
+/* 
+ * Function: ReadDiceFile
+ * --boardSize: size of boggle board
+ * --diceList: vector populated with dice strings
+ * -------------------
+ * Reads the boggle dice from a file.  The file name is based on the
+ * number of dice the board holds (boardSize squared).
+ * The dice file is boardSize squared lines long.  Each line has six
+ * characters in a string, representing a side of each die.
+ */ 
+void ReadDiceFile(int boardSize, Vector<string>& diceList);
+
+///////////////////////////////////////////////////////////////////////////////
+//   Graphics Methods
+///////////////////////////////////////////////////////////////////////////////
+
+/* 
+ * Function: LabelAllCubes
+ * --board:  boggle game board grid.
+ * -------------------
+ * Draw all the letters in the board object on the display.
+ */ 
+void LabelAllCubes(Grid<char>& board);
+
+/* 
+ * Function: FlashWordPath
+ * --wordPath: path of locations that traces out word on board
+ * --letterDelay: time in seconds to pause between highlighting a letter
+ * --wordDelay: time in seconds to leave word highlighted
+ * -------------------
+ * Highlights a word on the display.  Incrementally highlights each letter
+ * then after wordDelay seconds, unhighlights the entire word.
+ */ 
+void FlashWordPath(Vector<Location>& wordPath, 
+                   double letterDelay, double wordDelay);
+
 ///////////////////////////////////////////////////////////////////////////////
 //   Utility methods
 ///////////////////////////////////////////////////////////////////////////////
@@ -359,11 +554,11 @@ void FindWords(GameState& gameState) {
 
   for (int row = 0; row < board.numRows(); row++) {
     for (int col = 0; col < board.numCols(); col++) {
-      Location startLocation(row, col);
+      Location startLocation(row, col);// = new Location(row, col);
       Set<Location> startPath;
       startPath.add(startLocation);
       gameState.GetCurrentPlayer().ClearCurrentPath();
-      FindWords("", gameState, startPath);
+      FindWords("", gameState, startPath); 
     }
   }
 }
@@ -376,7 +571,6 @@ void FindWords(string prefix, GameState& gameState, Set<Location>& validPosition
   foreach (Location currentLetterPosition in validPositions) {
     char boardLetter = board[currentLetterPosition.row][currentLetterPosition.col];
     string candidate = AppendCharacter(prefix, boardLetter, true);
-    //cout << "--" << candidate << PathToString(userState.currentWordPath)  << endl;
     if (lexicon.containsPrefix(candidate)) {
       //is the candidate a word?
       if (candidate.size() >= MIN_WORD_SIZE && lexicon.containsWord(candidate)) {
@@ -400,9 +594,11 @@ bool ValidateWord(string word, GameState& gameState) {
   if (lexicon.containsWord(word)) {
     for (int row = 0; row < gameState.board.numRows(); row++) {
       for (int col = 0; col < gameState.board.numCols(); col++) {
+        //try a letter location that is the same as the first letter of word
         if (Is1stLetterEqual(gameState.board[row][col], word, true)) {
           string nextFragment = DecrementWord(word, true);
           if (ValidateWord(nextFragment, Location(row, col), gameState)) {
+            //we found a path, so the word is valid.
             gameState.GetCurrentPlayer().AddFoundWord(word);
             gameState.GetCurrentPlayer().ClearCurrentPath();
             return true;
@@ -411,25 +607,33 @@ bool ValidateWord(string word, GameState& gameState) {
       }
     }
   }
+  //word not found
+  gameState.GetCurrentPlayer().ClearCurrentPath();
   return false;
 }
 
 
-bool ValidateWord(string fragment, Location lastLetterLoc, GameState& gameState) {
-  if (fragment.size() == 0) 
+bool ValidateWord(string fragment, const Location& lastLetterLoc, GameState& gameState) {
+  // base case - we've whittled the string down to nothing after finding all the
+  // letters
+  if (fragment.size() == 0) {
+    gameState.GetCurrentPlayer().AddToCurrentPath(lastLetterLoc);
     return true;
+  }
 
   gameState.GetCurrentPlayer().AddToCurrentPath(lastLetterLoc);
   Set<Location> currentWordPath = gameState.GetCurrentPlayer().GetCurrentPath();
-
+  // populate this set with valid adjacent letter locations
   Set<Location> adjacentLetters;
   GetValidPositions(gameState, lastLetterLoc, adjacentLetters);
+  //try each adjacent letter
   foreach (Location letterLoc in adjacentLetters) {
     if (Is1stLetterEqual(gameState.board[letterLoc.row][letterLoc.col], fragment, true)) {
       if (ValidateWord(DecrementWord(fragment, true), letterLoc, gameState))
         return true;
     }
   }
+  //no path found, so bail
   gameState.GetCurrentPlayer().ClearCurrentPath();
   return false;
 }
@@ -442,6 +646,7 @@ void GetValidPositions(GameState& gameState,
     for (int dCol = -1; dCol <= 1; dCol++) {
       int nRow = currentGridLoc.row + dRow;
       int nCol = currentGridLoc.col + dCol;
+      //ignore the off-grid cells, 
       if (nRow >= 0 && nCol >= 0 &&
         !(nRow == currentGridLoc.row && nCol == currentGridLoc.col) &&
         nRow < gameState.board.numRows() && nCol < gameState.board.numCols()) {
@@ -454,9 +659,24 @@ void GetValidPositions(GameState& gameState,
   }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//   Input and Message Methods
+///////////////////////////////////////////////////////////////////////////////
 
-void GiveInstructions()
-{
+bool YesNoPrompt(string message) {
+  cout << message << " ";
+  while (true) {
+    string input = GetLine();
+    toUpper(input);
+    if (input == "YES")
+      return true;
+    else if (input == "NO")
+      return false;
+    cout << endl << "Please answer yes or no: ";
+  }
+}
+
+void GiveInstructions() {
   cout << endl << "The boggle board is a grid onto which I will randomly distribute" << endl
     << "dice.  These 6-sided dice have letters rather than numbers on the faces, " << endl
     << "creating a grid of letters on which you try to form words.  You go first, " << endl
@@ -482,84 +702,23 @@ void Welcome()
 
 
 
-int mainX()
-{
-  InitGraphics();
-  Welcome();
-  Lexicon lex("lexicon.dat");
-  return 0;
-}
-
-/**
-int OrderedLocationComparator(Location locOne, Location locTwo) {
-  int diff = locOne.ordinal - locTwo.ordinal;
-  if (diff == 0)
-    return 0;
-  return diff/abs(diff);
-}
-*/
-
-/*
-int UniqueLocationComparator(Location& locOne, Location& locTwo) {
-  if (locOne.row == locTwo.row && locOne.col == locTwo.col)
-    return 0;
-  int dRow = locOne.row - locTwo.row;
-  int dCol = locTwo.row - locTwo.col;
-  if (dRow == 0) {
-    return dCol/abs(dCol);
-  } else {
-    return dRow/abs(dRow);
+void ReadDiceFromUser(int boardSize, Vector<string>& diceList) {
+  cout << "Enter a 16-character string to identify which letters you want on the cubes." << endl
+      << "The first 4 letters are the cubes on the top row from left to right" << endl
+      << "next 4 letters are the second row, etc." << endl;
+  for (int i = 0; i < (boardSize * boardSize); i++) {
+    while (true) {
+      cout << "Enter line #" << (i + 1) << ":";
+      string input = GetLine();
+      toUpper(input);
+      if (input.size() == NUM_SIDES_ON_DIE) {
+        diceList.add(input);
+        break;
+      } else {
+        cout << "Invalid input" << endl;
+      }
+    }
   }
-}
-
-*/
-
-string PathToString(Vector<Location>& path) {
-  string output(" path:");
-  foreach (Location loc in path) {
-    output.append("[");
-    output.append(IntegerToString(loc.row));
-    output.append(",");
-    output.append(IntegerToString(loc.col));
-    output.append("]->");
-  }
-  return output;
-}
-
-
-
-
-
-void TestFindWord() {
-  GameState gameState;
-
-  gameState.board[0][0] = 'C';
-  gameState.board[0][1] = 'A';
-  gameState.board[0][2] = 'R';
-  gameState.board[0][3] = 'E';
-
-  gameState.board[1][0] = 'O';
-  gameState.board[1][1] = 'Z';
-  gameState.board[1][2] = 'O';
-  gameState.board[1][3] = 'I';
-
-  gameState.board[2][0] = 'D';
-  gameState.board[2][1] = 'F';
-  gameState.board[2][2] = 'L';
-  gameState.board[2][3] = 'Q';
-
-  gameState.board[3][0] = 'A';
-  gameState.board[3][1] = 'E';
-  gameState.board[3][2] = 'P';
-  gameState.board[3][3] = 'T';
-
-  bool found = ValidateWord("QUILT", gameState);
-
-  gameState.ComputersTurn();
-  FindWords(gameState);
-
-  cout<< gameState.GetCurrentPlayer().GetScore() << endl;
-
 }
 
 void ReadDiceFile(int boardSize, Vector<string>& diceList) {
@@ -583,6 +742,10 @@ void ReadDiceFile(int boardSize, Vector<string>& diceList) {
     Error("Incorrect number of dice in file: " + fileName);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//   Graphics Methods
+///////////////////////////////////////////////////////////////////////////////
+
 void LabelAllCubes(Grid<char>& board) {
   for (int row = 0; row < board.numRows(); row++) {
     for (int col = 0; col < board.numCols(); col++) {
@@ -592,7 +755,7 @@ void LabelAllCubes(Grid<char>& board) {
   UpdateDisplay();
 }
 
-void FlashWordPath(Grid<char>& board, Vector<Location>& wordPath, 
+void FlashWordPath(Vector<Location>& wordPath, 
                    double letterDelay, double wordDelay) {
   foreach (Location cell in wordPath) {
     HighlightCube(cell.row, cell.col, true);
@@ -606,25 +769,88 @@ void FlashWordPath(Grid<char>& board, Vector<Location>& wordPath,
   UpdateDisplay();
 }
 
-void PlayGame(GameState& gameState) {
-  Set<string> foundWordSet;
-  //prompt user while loop
+///////////////////////////////////////////////////////////////////////////////
+//   Game Play Methods
+///////////////////////////////////////////////////////////////////////////////
 
-  //computer goes
-  gameState.ComputersTurn();
-  //computer finds words
+void HumanPlays(GameState& gameState) {
+  while (true) {
+    cout << "Enter a word: ";
+    string word = GetLine();
+    toUpper(word);
+    if (word.empty())
+      break;
+    if (!ValidateWord(word, gameState)) {
+      PlayNamedSound("doh.wav");
+      cout << "Not a valid word." << endl;
+    } else {
+      RecordWordForPlayer(word, Human);
+      PlayNamedSound("kaching.wav");
+      Vector<Location>& wordPath = gameState.GetCurrentPlayer().GetPathForWord(word);
+      FlashWordPath(wordPath, 0.2, .5); 
+    }
+  }
+}
+
+void ComputerPlays(GameState& gameState) {
   FindWords(gameState);
-  //update stats on screen
-  foundWordSet.clear();
-
-  Player computerPlayer = gameState.GetCurrentPlayer();
-
+  Set<string> foundWordSet;
   gameState.GetCurrentPlayer().GetFoundWords(foundWordSet);
+  PlayNamedSound("tweetle.wav");
   foreach (string word in foundWordSet) {
     RecordWordForPlayer(word, Computer);
     Vector<Location>& wordPath = gameState.GetCurrentPlayer().GetPathForWord(word);
-    FlashWordPath(gameState.board, wordPath, 0.1, .25); 
+    FlashWordPath(wordPath, 0.0, .05); 
   }
+}
+
+// entry point
+int main() {
+  Randomize();
+  InitGraphics();
+  DrawBoard(BOARD_SIZE, BOARD_SIZE);
+  Welcome();
+  SetSoundOn(YesNoPrompt("Would you like sound?"));
+  Vector<string> diceList;
+  if (YesNoPrompt("Do you need instructions?"))
+    GiveInstructions();
+  while (true) {
+    if (YesNoPrompt("Do you want to enter your own board?"))
+      ReadDiceFromUser(BOARD_SIZE, diceList);
+    else
+      ReadDiceFile(BOARD_SIZE, diceList);
+    GameState gameState;
+    PopulateBoard(gameState.board, diceList);
+    LabelAllCubes(gameState.board);
+
+    HumanPlays(gameState);
+    //computer goes
+    gameState.ComputersTurn();
+    //computer finds words
+    ComputerPlays(gameState);
+
+    if (!YesNoPrompt("Play again?"))
+      break;
+    InitGraphics();
+    DrawBoard(BOARD_SIZE, BOARD_SIZE);
+  }
+  return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//   Test methods
+///////////////////////////////////////////////////////////////////////////////
+
+string PathToString(Vector<Location>& path) {
+  string output(" path:");
+  foreach (Location loc in path) {
+    output.append("[");
+    output.append(IntegerToString(loc.row));
+    output.append(",");
+    output.append(IntegerToString(loc.col));
+    output.append("]->");
+  }
+  return output;
 }
 
 void TestPopulateBoard() {
@@ -634,29 +860,47 @@ void TestPopulateBoard() {
   DrawBoard(4, 4);
   GameState gameState;
   PopulateBoard(gameState.board, diceList);
-
   LabelAllCubes(gameState.board);
-
   Vector<Location> wordPath;
   wordPath.add(Location(0, 0));
   wordPath.add(Location(1, 1));
   wordPath.add(Location(2, 2));
   wordPath.add(Location(3, 3));
-  FlashWordPath(gameState.board, wordPath, 0.1, 0.25);
-
-  PlayGame(gameState);
-
-
-  cout << endl;
+  FlashWordPath(wordPath, 0.1, 0.25);
 }
 
+void TestFindWord() {
+  GameState gameState;
 
+  gameState.board[0][0] = 'C';
+  gameState.board[0][1] = 'A';
+  gameState.board[0][2] = 'R';
+  gameState.board[0][3] = 'E';
 
-int main() {
-  Randomize();
-  
-  //TestFindWord();
+  gameState.board[1][0] = 'O';
+  gameState.board[1][1] = 'Z';
+  gameState.board[1][2] = 'O';
+  gameState.board[1][3] = 'I';
 
+  gameState.board[2][0] = 'D';
+  gameState.board[2][1] = 'F';
+  gameState.board[2][2] = 'L';
+  gameState.board[2][3] = 'Q';
+
+  gameState.board[3][0] = 'A';
+  gameState.board[3][1] = 'E';
+  gameState.board[3][2] = 'P';
+  gameState.board[3][3] = 'T';
+  bool found = ValidateWord("QUILT", gameState);
+  gameState.ComputersTurn();
+  FindWords(gameState);
+
+  cout<< gameState.GetCurrentPlayer().GetScore() << endl;
+
+}
+
+int mainTest() {
+  TestFindWord();
   TestPopulateBoard();
   return 0;
 }
