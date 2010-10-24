@@ -53,22 +53,6 @@ bool CanBreak(Piece piece, BreakageDirection dir, int breakLoc) {
   }
 }
 
-bool Broken(Piece& piece, int target) {
-  //
-  if (piece.rows * piece.cols == target)
-    return true;
-  if (piece.rows * piece.cols < target)
-    return false;
-  for (int breakLocVert = 1; breakLocVert < piece.rows; breakLocVert++) {
-    Piece subPieces[2];
-    BreakPiece(subPieces, piece, Vertical, breakLocVert);
-    Broken(subPieces[0], target);
-    Broken(subPieces[1], target);
-  }
-  return false; 
-}
-
-
 
 //record to represent a breakage action.
 //
@@ -91,6 +75,7 @@ bool TryCombination(vector<int> shareCombo, Piece piece) {
   //whittled down to a single share, see if it matches the size of the piece.
   if (shareCombo.size() == 1) {
     if (shareCombo[0] == piece.size()) {
+      cout << "share: " << shareCombo[0] << " matched" << endl;
       return true;
     } else {
       return false;
