@@ -97,10 +97,10 @@ bool TryCombination(vector<int> shareCombo, Piece piece) {
     vector<int> subcombo2;
     FillVector(shareCombo, subcombo1, subcomboInd);  
     FillVector(shareCombo, subcombo2, ~subcomboInd);
-    cout << "max bits: " << maxbits << "bitmask: " << subcomboInd << endl;
-    cout << "piece rows: " << piece.rows << " piece cols: " << piece.cols << endl;
-    PrintVector("sub1:", subcombo1);
-    PrintVector("sub2:", subcombo2);
+    //cout << "max bits: " << maxbits << "bitmask: " << subcomboInd << endl;
+    //cout << "piece rows: " << piece.rows << " piece cols: " << piece.cols << endl;
+    //PrintVector("sub1:", subcombo1);
+    //PrintVector("sub2:", subcombo2);
     //GetLine();
     for (int breakLocVert = 1; breakLocVert < piece.rows; breakLocVert++) {
       Piece subPieces[2];
@@ -111,6 +111,7 @@ bool TryCombination(vector<int> shareCombo, Piece piece) {
           return true;
       }
     }
+    //repeat with horizontal breaks
     for (int breakLocHor = 1; breakLocHor < piece.rows; breakLocHor++) {
       Piece subPieces[2];
       BreakPiece(subPieces, piece, Horizontal, breakLocHor);    
@@ -120,7 +121,6 @@ bool TryCombination(vector<int> shareCombo, Piece piece) {
           return true;
       }
     }
-    //repeat with horizontal breaks
   }
   return false;
 }
