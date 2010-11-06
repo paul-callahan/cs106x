@@ -124,6 +124,8 @@ void LinkedListPQueue::enqueue(string elem) {
 
 void LinkedListPQueue::appendAndAdvance(node*& currTail, node*& sourceNode) {
   sourceNode->prev = currTail;
+  if (currTail != NULL)
+    currTail->next = sourceNode;
   currTail = sourceNode;
   // currTail->next = NULL;
   sourceNode = sourceNode->next;  
