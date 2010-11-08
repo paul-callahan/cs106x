@@ -1,3 +1,13 @@
+/**
+* File: pqueue-binomial-heap.cpp
+* ---------------------
+* binomial heap priority queue subclass.
+*
+* Author: Paul Callahan
+* For: CS106X Assignment 5, Priority Queues
+* Date: Nov 7th, 2010
+*/
+
 #include "pqueue-binomial-heap.h"
 
 BinomialHeapPQueue::BinomialHeapPQueue() {}
@@ -56,7 +66,6 @@ BinomialHeapPQueue::node* BinomialHeapPQueue::add(node* operandOne, node* operan
     }
     return NULL;
   }
-
   carryOut = NULL;
 
   if (operandOne) {
