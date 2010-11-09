@@ -17,7 +17,7 @@ public:
   BinomialHeapPQueue() {};
 	~BinomialHeapPQueue();
 	
-  void merge(BinomialHeapPQueue *other);
+  void merge(BinomialHeapPQueue *other); 
 	static BinomialHeapPQueue *merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two);
   static BinomialHeapPQueue *merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two, 
     BinomialHeapPQueue* newQueue);

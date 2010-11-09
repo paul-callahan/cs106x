@@ -73,7 +73,7 @@ void BinomialHeapPQueue::enqueue(string elem) {
   tmpHeap->heapRoots.clear();  //all the allocated memory is in this.heapRoots now
   delete tmpHeap;
 
-  //merge(&singletonQueue);
+  //merge(&singletonQueue); 
 
   logSize++;
 }
