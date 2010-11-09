@@ -12,30 +12,32 @@
 #include <iostream>
 #include "strutils.h"
 
-bool debug_x = false;
 
-BinomialHeapPQueue::~BinomialHeapPQueue() {}
+BinomialHeapPQueue::BinomialHeapPQueue(int size){ 
+  logSize = size;
+  heapRoots.reserve(size + 1);
+}
+
+BinomialHeapPQueue::~BinomialHeapPQueue() {
+  int deleted = deleteElements();
+  //cout << IntegerToString(deleted) << " elements deleted." << endl;
+}
+
+
 
 string BinomialHeapPQueue::peek() { 
-
   return heapRoots[findIndexOfMinimum()]->value;
 }
 
 string BinomialHeapPQueue::extractMin() {
-
-
-
   int index = findIndexOfMinimum();
   node* minHeap = heapRoots[index];
   // take it out of the list of heaps
   heapRoots[index] = NULL;
   BinomialHeapPQueue remainingChildrenQueue;
 
-  // debug
-  int removedNodeCount = countActualElemets(minHeap);
-  int count = countActualElemets();
-  // debug
-
+  // take the children from the min heap and put them in their 
+  //own queue
   for (int i = 0; i < minHeap->children.size(); i++) {
     node* childRoot = minHeap->children[i];
     int order = childRoot->children.size();
@@ -46,15 +48,8 @@ string BinomialHeapPQueue::extractMin() {
     }
     remainingChildrenQueue.heapRoots[order] = childRoot;
   }
-  // debug
-  int remainChildCount = remainingChildrenQueue.countActualElemets();  
-  //debug_x = true;
 
   BinomialHeapPQueue* tmpHeap = merge(this, &remainingChildrenQueue);
- 
-  // debug
-  int tmpHeapCount = tmpHeap->countActualElemets();
-
   copyHeapRoots(*tmpHeap, *this);
   tmpHeap->heapRoots.clear();  //all the allocated memory is in this.heapRoots now
   delete tmpHeap;
@@ -66,76 +61,64 @@ string BinomialHeapPQueue::extractMin() {
 }
 
 void BinomialHeapPQueue::enqueue(string elem) {
-  node* singletonHeap = new node;
-  singletonHeap->value = elem;
-  BinomialHeapPQueue singletonQueue;
-  singletonQueue.heapRoots.push_back(singletonHeap);
+  //node* singletonHeap = new node;
+  //singletonHeap->value = elem;
+  //BinomialHeapPQueue singletonQueue;
+  //singletonQueue.heapRoots.push_back(singletonHeap);
+  
+  BinomialHeapPQueue singletonQueue = getSingletonQueue(elem);
 
   BinomialHeapPQueue* tmpHeap = merge(this, &singletonQueue);
   copyHeapRoots(*tmpHeap, *this);
   tmpHeap->heapRoots.clear();  //all the allocated memory is in this.heapRoots now
   delete tmpHeap;
+
+  //merge(&singletonQueue);
+
   logSize++;
+}
+
+BinomialHeapPQueue& BinomialHeapPQueue::getSingletonQueue(string elem) {
+  static BinomialHeapPQueue singletonQueue;
+  singletonQueue.heapRoots.clear();
+  singletonQueue.heapRoots.reserve(1);
+  node* singletonHeap = new node;
+  singletonHeap->value = elem;
+  singletonQueue.heapRoots.push_back(singletonHeap);
+  return singletonQueue;
+}
+
+void BinomialHeapPQueue::merge(BinomialHeapPQueue *other) {
+  static BinomialHeapPQueue transferHeap;
+  transferHeap.heapRoots.reserve(other->size() + size());
+  merge(this, other, &transferHeap);
+  copyHeapRoots(transferHeap, *this);
 }
 
 BinomialHeapPQueue *BinomialHeapPQueue::merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two) {
   BinomialHeapPQueue* newQueue = new BinomialHeapPQueue(one->size() + two->size());
+  return merge(one, two, newQueue);
+}
+
+BinomialHeapPQueue *BinomialHeapPQueue::merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two,
+                                              BinomialHeapPQueue* newQueue) {
 
   vector<node*> smallerHeapList = (one->size() <= two->size()) ? one->heapRoots : two->heapRoots;
   vector<node*> largerHeapList  = (one->size()  > two->size()) ? one->heapRoots : two->heapRoots;
-    
-  int newQueueActCount = 0;
-  int smallerLargerC = 0;
+  
 
   node* carry = NULL;
   for (int i = 0; i < smallerHeapList.size(); i++) {
     node* tmpCarry;
 
-    //debug/////////////////////////////
-    int smallerC = 0;
-    int largerC = 0;
-    int sumC1 = 0;
-    int carryC1 = 0;
-    int sumC2 = 0;
-    int carryC2 = 0;
-
-
-    node* smaller = smallerHeapList[i];
-    node* larger = largerHeapList[i];
-    if (debug_x) {
-      smallerC = countActualElemets(smaller);
-      largerC = countActualElemets(larger);
-    }
-    //debug; ///////////////////
-
     node* heapSum = add(smallerHeapList[i], carry, tmpCarry, i);
-
-
-    if (debug_x) {//////////////////
-      sumC1 = countActualElemets(heapSum);
-      carryC1 = countActualElemets(carry);
-    }
-    //////////////////////
-
     heapSum = add(heapSum, largerHeapList[i], carry, i);
-
-    if (debug_x) {
-      sumC2 = countActualElemets(heapSum);
-      carryC2 = countActualElemets(carry);
-    }
-
-    int s2c2 = sumC2 + carryC2;
-    smallerLargerC = smallerC + largerC;
 
     if (tmpCarry)
       carry = tmpCarry;
 
     newQueue->heapRoots.push_back(heapSum);
   }
-
-  //debug 
-  if (debug_x)
-    newQueueActCount = newQueue->countActualElemets();
 
   for (int i = smallerHeapList.size(); i < largerHeapList.size(); i++) {
     node* heapSum = add(carry, largerHeapList[i], carry, i);
@@ -145,6 +128,10 @@ BinomialHeapPQueue *BinomialHeapPQueue::merge(BinomialHeapPQueue *one, BinomialH
   if (carry) {
     newQueue->heapRoots.push_back(carry);
   }
+  // we moved all the nodes over, so top referencing them here
+  one->heapRoots.clear();
+  two->heapRoots.clear();
+
 	return newQueue;
 }
 
@@ -195,30 +182,30 @@ int BinomialHeapPQueue::findIndexOfFirstNonNull() {
 }
 
 void BinomialHeapPQueue::copyHeapRoots(BinomialHeapPQueue& src, BinomialHeapPQueue& dest) {
-  dest.heapRoots.clear();
-  dest.heapRoots.insert(dest.heapRoots.begin(), src.heapRoots.begin(), src.heapRoots.end());
+  dest.heapRoots.resize(src.heapRoots.size());
+  copy(src.heapRoots.begin(), src.heapRoots.end(), dest.heapRoots.begin());
+  // is this slow?
+  //dest.heapRoots.insert(dest.heapRoots.begin(), src.heapRoots.begin(), src.heapRoots.end());
 }
 
-int BinomialHeapPQueue::countActualElemets() {
-  if (!debug_x) return 0;
+int BinomialHeapPQueue::deleteElements() {
   int count = 0;
   for (int i = 0; i < heapRoots.size(); i++) {
     if (heapRoots[i])
-      count += countActualElemets(heapRoots[i]);
+      count += deleteElements(heapRoots[i]);
   }
   return count;
 }
 
-int BinomialHeapPQueue::countActualElemets(node* node) {
-  if (!debug_x) return 0;
+int BinomialHeapPQueue::deleteElements(node* node) {
   if (!node) {
     return 0;
   }
-
   int count = 1;
   for (int i = 0; i < node->children.size(); i++) {
-    count += countActualElemets(node->children[i]);
+    count += deleteElements(node->children[i]);
   }
+  delete node;
   return count;
 }
 
@@ -234,7 +221,6 @@ int mainX() {
   queue.enqueue("gggg");
   queue.enqueue("hhhh");
 
-  cout << "actual: " << IntegerToString(queue.countActualElemets()) << endl;
 
   string val = queue.extractMin();
   val = queue.extractMin();
@@ -245,7 +231,7 @@ int mainX() {
   val = queue.extractMin();
   val = queue.extractMin();
 
-  cout << "actual: " << IntegerToString(queue.countActualElemets()) << endl;
+
 
 
   return 0;

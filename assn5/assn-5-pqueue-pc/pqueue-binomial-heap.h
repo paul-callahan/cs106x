@@ -17,13 +17,16 @@ public:
   BinomialHeapPQueue() {};
 	~BinomialHeapPQueue();
 	
+  void merge(BinomialHeapPQueue *other);
 	static BinomialHeapPQueue *merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two);
+  static BinomialHeapPQueue *merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two, 
+    BinomialHeapPQueue* newQueue);
 	
 	void enqueue(string elem);
 	string extractMin();
 	string peek();
 
-  int BinomialHeapPQueue::countActualElemets();
+
 	
 private:
   struct node {
@@ -31,7 +34,7 @@ private:
     vector<node*> children;
   };
 
-  BinomialHeapPQueue(int size) { logSize = size; } ;
+  BinomialHeapPQueue(int size);
   vector<node*> heapRoots;
 
   int findIndexOfFirstNonNull();
@@ -40,11 +43,16 @@ private:
 
   static node* add(node* operandOne, node* operandTwo, node*& carry, int order);
   
-  static int BinomialHeapPQueue::countActualElemets(node* n);
+  int BinomialHeapPQueue::deleteElements();
+  static int BinomialHeapPQueue::deleteElements(node* n);
+
+  BinomialHeapPQueue& getSingletonQueue(string elem);
 
 	// update the private section with the list of 
 	// data members and helper methods needed to implement
 	// the binomial-heap-backed version of the PQueue.
 };
+
+
 
 #endif
