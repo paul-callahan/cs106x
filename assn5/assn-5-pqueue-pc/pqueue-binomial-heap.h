@@ -14,7 +14,7 @@
 
 class BinomialHeapPQueue : public PQueue {
 public:
-	BinomialHeapPQueue();
+  BinomialHeapPQueue() {};
 	~BinomialHeapPQueue();
 	
 	static BinomialHeapPQueue *merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two);
@@ -22,6 +22,8 @@ public:
 	void enqueue(string elem);
 	string extractMin();
 	string peek();
+
+  int BinomialHeapPQueue::countActualElemets();
 	
 private:
   struct node {
@@ -32,7 +34,13 @@ private:
   BinomialHeapPQueue(int size) { logSize = size; } ;
   vector<node*> heapRoots;
 
+  int findIndexOfFirstNonNull();
+  int findIndexOfMinimum();
+  void copyHeapRoots(BinomialHeapPQueue& src, BinomialHeapPQueue& dest);
+
   static node* add(node* operandOne, node* operandTwo, node*& carry, int order);
+  
+  static int BinomialHeapPQueue::countActualElemets(node* n);
 
 	// update the private section with the list of 
 	// data members and helper methods needed to implement
