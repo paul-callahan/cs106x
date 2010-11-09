@@ -12,47 +12,93 @@
 #include <iostream>
 #include "strutils.h"
 
+/*
+ * Constructor: 
+ * -----------------------------
+ *  see declaration
+ */
+BinomialHeapPQueue::BinomialHeapPQueue(){ 
+  init();
+}
 
+/*
+ * Constructor: 
+ * -----------------------------
+ *  see declaration
+ */
 BinomialHeapPQueue::BinomialHeapPQueue(int size){ 
+  init();
   logSize = size;
   heapRoots.reserve(size + 1);
 }
 
+/*
+ * Constructor: 
+ * -----------------------------
+ *  see declaration
+ */
+void BinomialHeapPQueue::init(){ 
+  tmpQueue = NULL;
+  singletonQueue = NULL;
+  remainingChildrenQueue = NULL;
+}
+
+/*
+ * Destructor: 
+ * -----------------------------
+ *  see declaration
+ */
+
 BinomialHeapPQueue::~BinomialHeapPQueue() {
   int deleted = deleteElements();
+  if (tmpQueue)
+    delete tmpQueue;
+  if (singletonQueue)
+    delete singletonQueue;
+  if (remainingChildrenQueue)
+    delete remainingChildrenQueue;
   //cout << IntegerToString(deleted) << " elements deleted." << endl;
 }
 
 
-
+/*
+ * Method: peek
+ * -----------------------------
+ *  see declaration
+ */
 string BinomialHeapPQueue::peek() { 
   return heapRoots[findIndexOfMinimum()]->value;
 }
 
+/*
+ * Method: extractMin
+ * -----------------------------
+ *  see declaration
+ */
 string BinomialHeapPQueue::extractMin() {
   int index = findIndexOfMinimum();
   node* minHeap = heapRoots[index];
   // take it out of the list of heaps
   heapRoots[index] = NULL;
-  BinomialHeapPQueue remainingChildrenQueue;
+
+  //lazy construct this temp queue.
+  if (!remainingChildrenQueue) 
+    remainingChildrenQueue = new BinomialHeapPQueue;
 
   // take the children from the min heap and put them in their 
   //own queue
   for (int i = 0; i < minHeap->children.size(); i++) {
     node* childRoot = minHeap->children[i];
     int order = childRoot->children.size();
-    //pad the list of heaps
+    //pad the list of heaps with nulls
     if (i != order +1) {
-      remainingChildrenQueue.heapRoots.
-        insert(remainingChildrenQueue.heapRoots.end(), order - i + 1, NULL);
+      remainingChildrenQueue->heapRoots.
+        insert(remainingChildrenQueue->heapRoots.end(), order - i + 1, NULL);
     }
-    remainingChildrenQueue.heapRoots[order] = childRoot;
+    remainingChildrenQueue->heapRoots[order] = childRoot;
   }
 
-  BinomialHeapPQueue* tmpHeap = merge(this, &remainingChildrenQueue);
-  copyHeapRoots(*tmpHeap, *this);
-  tmpHeap->heapRoots.clear();  //all the allocated memory is in this.heapRoots now
-  delete tmpHeap;
+  merge(remainingChildrenQueue);
 
   string value = minHeap->value;
   delete minHeap;
@@ -60,59 +106,67 @@ string BinomialHeapPQueue::extractMin() {
   return value;
 }
 
+/*
+ * Method: enqueue
+ * -----------------------------
+ *  see declaration
+ */
 void BinomialHeapPQueue::enqueue(string elem) {
-  //node* singletonHeap = new node;
-  //singletonHeap->value = elem;
-  //BinomialHeapPQueue singletonQueue;
-  //singletonQueue.heapRoots.push_back(singletonHeap);
-  
-  BinomialHeapPQueue singletonQueue = getSingletonQueue(elem);
+  //only place we construct new nodes
+  node* singletonHeap = new node;
+  singletonHeap->value = elem;
 
-  BinomialHeapPQueue* tmpHeap = merge(this, &singletonQueue);
-  copyHeapRoots(*tmpHeap, *this);
-  tmpHeap->heapRoots.clear();  //all the allocated memory is in this.heapRoots now
-  delete tmpHeap;
-
-  //merge(&singletonQueue); 
-
+  //lazy construct singleton queue
+  if (!singletonQueue)
+    singletonQueue = new BinomialHeapPQueue();
+  singletonQueue->heapRoots.push_back(singletonHeap);
+  merge(singletonQueue); 
+  singletonQueue->heapRoots.clear();
   logSize++;
 }
 
-BinomialHeapPQueue& BinomialHeapPQueue::getSingletonQueue(string elem) {
-  static BinomialHeapPQueue singletonQueue;
-  singletonQueue.heapRoots.clear();
-  singletonQueue.heapRoots.reserve(1);
-  node* singletonHeap = new node;
-  singletonHeap->value = elem;
-  singletonQueue.heapRoots.push_back(singletonHeap);
-  return singletonQueue;
-}
-
+/*
+ * Method: merge
+ * -----------------------------
+ *  see declaration
+ */
 void BinomialHeapPQueue::merge(BinomialHeapPQueue *other) {
-  static BinomialHeapPQueue transferHeap;
-  transferHeap.heapRoots.reserve(other->size() + size());
-  merge(this, other, &transferHeap);
-  copyHeapRoots(transferHeap, *this);
+  if (!tmpQueue)
+    tmpQueue = new BinomialHeapPQueue();
+
+  merge(this, other, tmpQueue);
+  copyHeapRoots(*tmpQueue, *this);
+  tmpQueue->heapRoots.clear();  //all the allocated memory is in this.heapRoots now
 }
 
+/*
+ * Method: merge
+ * -----------------------------
+ *  see declaration
+ */
 BinomialHeapPQueue *BinomialHeapPQueue::merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two) {
   BinomialHeapPQueue* newQueue = new BinomialHeapPQueue(one->size() + two->size());
   return merge(one, two, newQueue);
 }
 
+/*
+ * Method: merge
+ * -----------------------------
+ *  see declaration
+ */
 BinomialHeapPQueue *BinomialHeapPQueue::merge(BinomialHeapPQueue *one, BinomialHeapPQueue *two,
                                               BinomialHeapPQueue* newQueue) {
-
   vector<node*> smallerHeapList = (one->size() <= two->size()) ? one->heapRoots : two->heapRoots;
   vector<node*> largerHeapList  = (one->size()  > two->size()) ? one->heapRoots : two->heapRoots;
-  
+
 
   node* carry = NULL;
+  // "add" up all the heaps in the smaller sized list w/ the bigger list
   for (int i = 0; i < smallerHeapList.size(); i++) {
     node* tmpCarry;
 
-    node* heapSum = add(smallerHeapList[i], carry, tmpCarry, i);
-    heapSum = add(heapSum, largerHeapList[i], carry, i);
+    node* heapSum = add(smallerHeapList[i], carry, tmpCarry);
+    heapSum = add(heapSum, largerHeapList[i], carry);
 
     if (tmpCarry)
       carry = tmpCarry;
@@ -120,11 +174,13 @@ BinomialHeapPQueue *BinomialHeapPQueue::merge(BinomialHeapPQueue *one, BinomialH
     newQueue->heapRoots.push_back(heapSum);
   }
 
+  // "add" any left over carry with the balance of the items in the bigger list
   for (int i = smallerHeapList.size(); i < largerHeapList.size(); i++) {
-    node* heapSum = add(carry, largerHeapList[i], carry, i);
+    node* heapSum = add(carry, largerHeapList[i], carry);
     newQueue->heapRoots.push_back(heapSum);
   }
 
+  //one last carry "bit"
   if (carry) {
     newQueue->heapRoots.push_back(carry);
   }
@@ -132,11 +188,15 @@ BinomialHeapPQueue *BinomialHeapPQueue::merge(BinomialHeapPQueue *one, BinomialH
   one->heapRoots.clear();
   two->heapRoots.clear();
 
-	return newQueue;
+  return newQueue;
 }
 
-
-BinomialHeapPQueue::node* BinomialHeapPQueue::add(node* operandOne, node* operandTwo, node*& carryOut, int order) {
+/*
+ * Method: add
+ * -----------------------------
+ *  see declaration
+ */
+BinomialHeapPQueue::node* BinomialHeapPQueue::add(node* operandOne, node* operandTwo, node*& carryOut) {
   if (operandOne && operandTwo) {
     if (operandOne->value < operandTwo->value) {
       operandOne->children.push_back(operandTwo);
@@ -159,6 +219,11 @@ BinomialHeapPQueue::node* BinomialHeapPQueue::add(node* operandOne, node* operan
   }
 }
 
+/*
+ * Method: findIndexOfMinimum
+ * -----------------------------
+ *  see declaration
+ */
 int BinomialHeapPQueue::findIndexOfMinimum() {
   int minIndex = findIndexOfFirstNonNull();
   string minString = heapRoots[minIndex]->value;
@@ -173,6 +238,11 @@ int BinomialHeapPQueue::findIndexOfMinimum() {
   return minIndex;
 }
 
+/*
+ * Method: findIndexOfFirstNonNull
+ * -----------------------------
+ *  see declaration
+ */
 int BinomialHeapPQueue::findIndexOfFirstNonNull() {
   for (int i = 0; i < heapRoots.size(); i++) {
     if (heapRoots[i])
@@ -181,13 +251,23 @@ int BinomialHeapPQueue::findIndexOfFirstNonNull() {
   return -1;
 }
 
+/*
+ * Method: copyHeapRoots
+ * -----------------------------
+ *  see declaration
+ */
 void BinomialHeapPQueue::copyHeapRoots(BinomialHeapPQueue& src, BinomialHeapPQueue& dest) {
   dest.heapRoots.resize(src.heapRoots.size());
   copy(src.heapRoots.begin(), src.heapRoots.end(), dest.heapRoots.begin());
-  // is this slow?
+  // is this slower?
   //dest.heapRoots.insert(dest.heapRoots.begin(), src.heapRoots.begin(), src.heapRoots.end());
 }
 
+/*
+ * Method: deleteElements
+ * -----------------------------
+ *  see declaration
+ */
 int BinomialHeapPQueue::deleteElements() {
   int count = 0;
   for (int i = 0; i < heapRoots.size(); i++) {
@@ -197,6 +277,11 @@ int BinomialHeapPQueue::deleteElements() {
   return count;
 }
 
+/*
+ * Method: deleteElements
+ * -----------------------------
+ *  see declaration
+ */
 int BinomialHeapPQueue::deleteElements(node* node) {
   if (!node) {
     return 0;
@@ -209,30 +294,3 @@ int BinomialHeapPQueue::deleteElements(node* node) {
   return count;
 }
 
-int mainX() {
-  BinomialHeapPQueue queue;
-
-  queue.enqueue("aaaa");
-  queue.enqueue("bbbb");
-  queue.enqueue("cccc");
-  queue.enqueue("dddd");
-  queue.enqueue("eeee");
-  queue.enqueue("ffff");
-  queue.enqueue("gggg");
-  queue.enqueue("hhhh");
-
-
-  string val = queue.extractMin();
-  val = queue.extractMin();
-  val = queue.extractMin();
-  val = queue.extractMin();
-  val = queue.extractMin();
-  val = queue.extractMin();
-  val = queue.extractMin();
-  val = queue.extractMin();
-
-
-
-
-  return 0;
-}
