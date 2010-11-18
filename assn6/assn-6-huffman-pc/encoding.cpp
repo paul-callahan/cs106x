@@ -1,6 +1,10 @@
 /* File: encoding.cpp
 * -----------------
-* Put your Encoding class implementation here!
+* Encoding class implementation.
+*
+* Author: Paul Callahan 
+* Grader: Alex Quach
+* Assignment #6, Huffman Encoding
 */
 
 #include <iostream>
@@ -9,7 +13,15 @@
 #include "pqueue.h"
 #include <map>
 
-
+/*
+* Member function: compress
+* Usage: encoding.compress(in, out);
+* ----------------------------------
+* Reads the contents of the input stream and writes a compressed
+* version to the output stream. The ibstream is assumed to be
+* open and ready for reading, the obstream open and ready for writing.
+* The boolean result indicates success or failure.
+*/
 bool Encoding::compress(ibstream &input, dobstream &output) {
   checkStreamState(input);
   checkStreamState(output);
@@ -18,31 +30,35 @@ bool Encoding::compress(ibstream &input, dobstream &output) {
   createLookupPaths(*mEncodingTableRoot, string());
   writeEncodingTable(output);
   writeCompressedFileBody(input, output);
-
-  /** test code  
-  node* tmp = mEncodingTableRoot;
-
-  ibstream ins;
-  ins.open(string("foo.cs106x").c_str());
-  readEncodingTable(ins);
-  map<int, string> tmpLookup = byteLookup;
-  byteLookup.clear();
-  createLookupPaths(*mEncodingTableRoot, string());
-
-  */
-
+  // failures are thrown as Errors.
   return true;
 }
 
+/*
+* Member function: deccompress
+* Usage: encoding.decompress(in, out);
+* -------------------------------------
+* Reads the compressed input stream and writes a uncompressed
+* version to the output stream. The ibstream is assumed to be
+* open and ready for reading, the obstream open and ready for writing.
+* The boolean result indicates success or failure.
+*/
 bool Encoding::decompress(ibstream &input, dobstream &output) {
   checkStreamState(input);
   checkStreamState(output);
   readEncodingTable(input);
   createLookupPaths(*mEncodingTableRoot, string());
   writeDecompressedFile(input, output);
+  // failures are thrown as Errors.
   return true;
 }
 
+/*
+* Private Member function: createLookupPaths
+* -------------------------------------
+* recursively builds bit patterns from root-to-leaf paths in
+* the encoding tree.
+*/
 void Encoding::createLookupPaths(node& node, string bitPattern) {
   if (node.isLeaf()) {
     mByteLookup.insert(pair<int, string>(node.byte, bitPattern));
@@ -52,13 +68,26 @@ void Encoding::createLookupPaths(node& node, string bitPattern) {
   }
 }
 
+/*
+* Private Member function: writeEncodingTable
+* -------------------------------------
+* Writes the encoding table/tree to the output stream.  
+* The tree is serialized as a pre-order traversal of
+* the encoding tree.  Inner nodes are stored as zeros and
+* leaf nodes are stored as ones with the node's byte/character
+* stored as at least two byes, to accomodate the pseudo EOF character
+*/
 void Encoding::writeEncodingTable(dobstream& output) {
   writeEncodingTable(*mEncodingTableRoot, output);
-  //output.writebit(1);
-  //output.put(PSEUDO_EOF);
   output.flush();
 }
 
+/*
+* Private Member function: writeEncodingTable
+* -------------------------------------
+* Recursive helper for serializing the encoding tree/table.
+* See description of the single-argument version.
+*/
 void Encoding::writeEncodingTable(node& node, dobstream& output) {
   //base case
   if (node.isLeaf()) {
@@ -73,12 +102,23 @@ void Encoding::writeEncodingTable(node& node, dobstream& output) {
   writeEncodingTable(*node.right, output);
 }
 
-
+/*
+* Private Member function: readEncodingTable
+* -------------------------------------
+* Deserializes the pre-order representation of the encoding tree and
+* assigns it to the mEncodingTableRoot member.
+*/
 void Encoding::readEncodingTable(ibstream& input) {
   input.rewind();
   mEncodingTableRoot = readEncodingNode(input);
 }
 
+/*
+* Private Member function: readEncodingNode
+* -------------------------------------
+* Recursive helper for deserializing the encoding tree.
+* See description of the single-argument version.
+*/
 Encoding::node* Encoding::readEncodingNode(ibstream& input) {
   int bit = input.readbit();
   if (bit) {
@@ -93,6 +133,14 @@ Encoding::node* Encoding::readEncodingNode(ibstream& input) {
   return n;
 }
 
+/*
+* Member function: buildEncodingForInput
+* Usage: encoding.buildEncodingForInput(in);
+* -------------------------------------
+* Makes a pass over the input, records the "byte" alphabet and the 
+* frequencies for the alphabet.  Then builds the encoding table
+* for the alphabet.
+*/
 void Encoding::buildEncodingForInput(ibstream& input) {
   input.rewind();
   checkStreamState(input);
@@ -117,6 +165,14 @@ void Encoding::buildEncodingForInput(ibstream& input) {
 
 }
 
+/*
+* Private Member function: buildHuffmanTree
+* -------------------------------------
+* Builds the encoding tree out of a map of byte frequencies.
+* iterates over the map, puts the bytes into a priority queue with the
+* frequencies as weights, and then runs the huffman algorithm to find
+* the optimal encoding tree.
+*/
 void Encoding::buildHuffmanTree(map<int, int>& frequencyMap) {
   PQueue<node*> pq;
   map<int, int>::iterator i = frequencyMap.begin();
@@ -142,7 +198,12 @@ void Encoding::buildHuffmanTree(map<int, int>& frequencyMap) {
   }
   mEncodingTableRoot = pq.extractMin();
 }
-
+/*
+* Private Member function: writeDecompressedFile
+* -------------------------------------
+* Writes the decompressed file to the output stream, from the
+* compressed input stream.
+*/
 void Encoding::writeDecompressedFile(ibstream& input, dobstream& output) {
   node* currNode = mEncodingTableRoot;
   while(input.good()) {
@@ -166,13 +227,19 @@ void Encoding::writeDecompressedFile(ibstream& input, dobstream& output) {
   output.flush();
 }
 
+/*
+* Private Member function: writeCompressedFileBody
+* -------------------------------------
+* Writes the compressed file contents to the output stream.
+* Input stream is the uncompressed source file.
+*/
 void Encoding::writeCompressedFileBody(ibstream& input, dobstream& output) {
   input.rewind();
   while(input.good()) {
     int byte = input.get();
     if (input.eof())
       break;
-  
+
     string bitPattern = getBitPatternForByte(byte);
     output.writebits(bitPattern, byte);
   }
@@ -181,6 +248,13 @@ void Encoding::writeCompressedFileBody(ibstream& input, dobstream& output) {
   output.flush();
 }
 
+/*
+* Private Member function: getBitPatternForByte
+* -------------------------------------
+*  Looks up the bit pattern for a given byte/character from the
+* byteLookup dictionary.  Throws an Error if there is no bit pattern
+* for the given byte/character.
+*/
 string Encoding::getBitPatternForByte(int byte) {
   map<int,string>::iterator it = mByteLookup.find(byte);
   if (it == mByteLookup.end())
@@ -188,12 +262,26 @@ string Encoding::getBitPatternForByte(int byte) {
   return it->second;
 }
 
+/*
+* Private Member function: checkStreamState
+* -------------------------------------
+* Validates that the given stream state is good.
+* throws an Error if the stream is in a bad() state.
+*/
 void Encoding::checkStreamState(ios_base& stream) {
   if (stream.bad()) {
     Error("bad stream: " /* + stream.getName ?? */ );
   }
 }
 
+/*
+* Member function: match
+* Usage: Encoding::match(in, out);
+* -------------------------------------
+* Compares to files and attempts to determine if they are the same
+* or different.  Outputs the first byte position where they differ.
+* Returns true if the same or false if different.
+*/
 bool Encoding::match(ibstream& streamOne, ibstream& streamTwo) {
   if (streamOne.size() != streamTwo.size()) {
     cout << "mismatch in file sizes" << endl;
@@ -210,7 +298,15 @@ bool Encoding::match(ibstream& streamOne, ibstream& streamTwo) {
   return true;
 }
 
-void Encoding::selfTest(string sourceFile) {
+/*
+* Member function: selfTest
+* Usage: Encoding::selfTest(someFile);
+* -------------------------------------
+* Compresses then decompresses the given file.  Then runs match on 
+* the output file to verify it is the same as the input.  Assumes the
+* file sourceFile exists.
+*/
+bool Encoding::selfTest(string sourceFile) {
   ibstream ins;
   ins.open(sourceFile.c_str());
 
@@ -243,5 +339,6 @@ void Encoding::selfTest(string sourceFile) {
   bool doTheyMatch = match(matchStream1, matchStream2);
 
   cout << "Do files match:  " << (doTheyMatch ? "yes" : "no") << endl << endl;
+  return doTheyMatch;
 
 }
